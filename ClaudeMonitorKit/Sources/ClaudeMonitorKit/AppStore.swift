@@ -245,11 +245,6 @@ public final class AppStore {
         }
     }
 
-    /// Blocked/free markers. Emoji render in color in the menu bar where SwiftUI's template
-    /// rendering would strip a tinted shape — verified on screen before shipping.
-    public static let blockedGlyph = "\u{1F534}"   // red circle
-    public static let freeGlyph = "\u{1F7E2}"      // green circle
-
     /// Short per-account labels for the menu bar: first letter plus any digits in the name
     /// ("claude" -> "c", "claude2" -> "c2"). Falls back to 1-based numbering if that collides.
     public static func menuBarTags(for accounts: [Account]) -> [UUID: String] {
@@ -270,18 +265,26 @@ public final class AppStore {
         accounts.filter(\.showInMenuBar)
     }
 
-    public var menuBarText: String {
+    /// One entry per shown account. `dotPercent` is the session/weekly max — deliberately
+    /// independent of the displayed metric, so the dot always means "how close to being stopped".
+    /// nil means no data yet (drawn gray).
+    public struct MenuBarSegment: Identifiable, Sendable, Equatable {
+        public let id: UUID
+        public let tag: String?
+        public let dotPercent: Int?
+        public let showDot: Bool
+        public let text: String
+    }
+
+    public var menuBarSegments: [MenuBarSegment] {
         let shown = menuBarAccounts
         let tags = Self.menuBarTags(for: shown)
         let single = shown.count == 1
 
-        let parts = shown.compactMap { account -> String? in
+        return shown.compactMap { account -> MenuBarSegment? in
             let snapshot = snapshot(for: account.id)
             var fields: [String] = []
 
-            if settings.menuBarBlockedDot, snapshot != nil {
-                fields.append(isBlocked(account.id) ? Self.blockedGlyph : Self.freeGlyph)
-            }
             if settings.showPercentInMenuBar, let percent = percent(for: account.id, metric: settings.menuBarMetric) {
                 fields.append("\(percent)%")
             }
@@ -295,12 +298,25 @@ public final class AppStore {
             if settings.menuBarShowSpend, let spend = snapshot?.spend, spend.enabled, spend.usedMinor > 0 {
                 fields.append(spend.usedCompactFormatted)
             }
-            guard !fields.isEmpty else { return nil }
 
-            let prefix = single ? "" : (tags[account.id] ?? "?") + " "
-            return prefix + fields.joined(separator: " ")
+            let showDot = settings.menuBarBlockedDot && snapshot != nil
+            guard showDot || !fields.isEmpty else { return nil }
+            // No numbers -> no tag either: a bare "c · c2" adds nothing the dot order doesn't
+            // already say, and the point of dots-only mode is minimum width.
+            return MenuBarSegment(id: account.id,
+                                  tag: (single || fields.isEmpty) ? nil : tags[account.id],
+                                  dotPercent: snapshot?.blockingPercent,
+                                  showDot: showDot,
+                                  text: fields.joined(separator: " "))
         }
-        return parts.joined(separator: " · ")
+    }
+
+    /// Text-only rendering (no dots) — used for logging, tests, and as the accessibility title.
+    public var menuBarText: String {
+        menuBarSegments.compactMap { segment in
+            let parts = [segment.tag, segment.text.isEmpty ? nil : segment.text].compactMap { $0 }
+            return parts.isEmpty ? nil : parts.joined(separator: " ")
+        }.joined(separator: " · ")
     }
 
     // MARK: - Off-main fetch (nonisolated: runs inside TaskGroup child tasks)

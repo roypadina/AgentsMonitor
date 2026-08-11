@@ -35,10 +35,11 @@ in Claude Code itself:
 - Menu-bar label, fully configurable (Settings → General + the per-account **Menu bar**
   checkbox): pick **which accounts** appear, **which value** each one shows (worst limit,
   session, weekly, or per-model weekly), plus optional extras per account: the **per-model
-  window** shown separately (`F 100%`), the **extra usage spent** (`$739`), and a **blocked
-  indicator** — 🟢/🔴 when a session or weekly limit is exhausted. Per-model windows never
-  count as blocking or as the headline number: with one model maxed you can still work on
-  another. Example: `c 🟢 86% F 100% $739 · c2 🟢 22%`
+  window** shown separately (`F 100%`) and the **extra usage spent** (`$739`)
+- A **usage dot** per account that fades green → yellow → red with session/weekly usage, so the
+  color alone tells you where you stand. Turn off the percentages and you get a minimal
+  dots-only menu bar. Per-model windows never feed the dot or the headline number: with one
+  model maxed you can still work on another.
 
 ## Accounts
 
@@ -138,7 +139,7 @@ prompt.
 ## Build & test
 
 ```bash
-swift test --package-path ClaudeMonitorKit          # 36 unit tests (parsing, derivation, alert engine, credentials, settings, menu bar)
+swift test --package-path ClaudeMonitorKit          # 37 unit tests (parsing, derivation, alert engine, credentials, settings, menu bar)
 xcodebuild -workspace ClaudeMonitor.xcworkspace -scheme ClaudeMonitor \
   -configuration Release -derivedDataPath build build
 cp -R build/Build/Products/Release/ClaudeMonitor.app /Applications/

@@ -314,9 +314,18 @@ private struct GeneralTab: View {
                 Toggle("Also show per-model window", isOn: bindingBool(\.menuBarShowModelScoped))
                     .disabled(store.settings.menuBarMetric == .modelScoped)
                 Toggle("Also show extra usage spent", isOn: bindingBool(\.menuBarShowSpend))
-                VStack(alignment: .leading, spacing: 2) {
-                    Toggle("Blocked indicator", isOn: bindingBool(\.menuBarBlockedDot))
-                    Text("\(AppStore.freeGlyph) / \(AppStore.blockedGlyph) per account when a session or weekly limit is exhausted. Per-model limits are ignored — you can still work on another model.")
+                VStack(alignment: .leading, spacing: 4) {
+                    Toggle("Usage dot", isOn: bindingBool(\.menuBarBlockedDot))
+                    HStack(spacing: 5) {
+                        ForEach([0, 25, 50, 75, 100], id: \.self) { percent in
+                            HStack(spacing: 2) {
+                                Image(nsImage: UsageDot.composite(percents: [percent], diameter: 9))
+                                Text("\(percent)%")
+                            }
+                        }
+                    }
+                    .font(.caption2)
+                    Text("Green through red by session/weekly usage — per-model windows are excluded, since a maxed-out model still leaves the others usable. Turn off \"Show percent\" for a dots-only menu bar.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

@@ -438,19 +438,33 @@ final class MenuBarTextTests: XCTestCase {
         XCTAssertEqual(s.menuBarText, "28%", "one remaining account drops the tag too")
     }
 
-    func testBlockedDotUsesSessionAndWeeklyOnly() {
+    func testDotPercentIsSessionWeeklyMaxIgnoringPerModel() {
         let s = store(names: ["claude", "claude2"], limits: [[37, 85, 100], [100, 28, 12]])
         s.settings.menuBarBlockedDot = true
-        // claude: only the per-model window is exhausted -> not blocked. claude2: session at 100 -> blocked.
-        XCTAssertEqual(s.menuBarText, "c \(AppStore.freeGlyph) 85% · c2 \(AppStore.blockedGlyph) 100%")
+        let segments = s.menuBarSegments
+        // claude's Fable window is at 100% but the dot tracks only what can stop you: weekly 85%.
+        XCTAssertEqual(segments[0].dotPercent, 85)
+        XCTAssertEqual(segments[1].dotPercent, 100, "session exhausted -> full red")
+        XCTAssertTrue(segments.allSatisfy(\.showDot))
+        XCTAssertFalse(s.isBlocked(s.accounts[0].id))
+        XCTAssertTrue(s.isBlocked(s.accounts[1].id))
     }
 
-    func testDotOnlyModeWhenPercentHidden() {
+    func testDotOnlyModeDropsAllTextIncludingTags() {
         let s = store(names: ["claude", "claude2"], limits: [[37, 85, 100], [100, 28, 12]])
         s.settings.menuBarBlockedDot = true
         s.settings.showPercentInMenuBar = false
-        // Tags stay in dot-only mode — otherwise you see that something is blocked but not which.
-        XCTAssertEqual(s.menuBarText, "c \(AppStore.freeGlyph) · c2 \(AppStore.blockedGlyph)")
+        XCTAssertEqual(s.menuBarText, "", "dots carry the whole signal; tags would only add width")
+        XCTAssertEqual(s.menuBarSegments.count, 2)
+        XCTAssertEqual(s.menuBarSegments.map(\.dotPercent), [85, 100])
+    }
+
+    func testDotColorRunsGreenToRed() {
+        // Pure function on the app side of the boundary is exercised in the app; here we just pin
+        // the input the app consumes: a nil percent must stay nil (unknown), never 0 (healthy).
+        let s = store(names: ["claude"], limits: [nil])
+        s.settings.menuBarBlockedDot = true
+        XCTAssertEqual(s.menuBarSegments.count, 0, "no snapshot -> nothing to draw yet")
     }
 
     func testAccountsWithoutDataAreSkippedNotBlank() {

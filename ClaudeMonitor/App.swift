@@ -24,19 +24,6 @@ struct ClaudeMonitorApp: App {
 /// The menu bar label. SwiftUI renders it as a template image — `.foregroundStyle` on the
 /// text/icon is silently dropped, so this stays plain text + a neutral SF Symbol. Severity
 /// color lives in the popover and toast instead.
-private struct MenuBarLabel: View {
-    private let store = AppStore.shared
-
-    var body: some View {
-        HStack(spacing: 3) {
-            Image(systemName: "gauge")
-            if !store.menuBarText.isEmpty {
-                Text(store.menuBarText)
-            }
-        }
-    }
-}
-
 final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         let store = AppStore.shared
