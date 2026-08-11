@@ -32,7 +32,9 @@ in Claude Code itself:
 - **Extra-usage spend this month** (`$728.60 / $800.00 · 91%`)
 - Severity coloring (green / orange / red) exactly as the API reports it, a **pacing tick** on
   each bar (where an even burn rate would put you right now), and a "resets in 2h 14m" countdown
-- Menu-bar label: the worst percent across every configured account, at a glance
+- Menu-bar label: one percent **per account**, each with a short auto-derived tag
+  (`c 100% · c2 28%`) — or the single worst percent across all accounts, your choice
+  (Settings → General)
 
 ## Accounts
 
@@ -132,7 +134,7 @@ prompt.
 ## Build & test
 
 ```bash
-swift test --package-path ClaudeMonitorKit          # 23 unit tests (parsing, derivation, alert engine, credentials, settings migration)
+swift test --package-path ClaudeMonitorKit          # 29 unit tests (parsing, derivation, alert engine, credentials, settings, menu bar)
 xcodebuild -workspace ClaudeMonitor.xcworkspace -scheme ClaudeMonitor \
   -configuration Release -derivedDataPath build build
 cp -R build/Build/Products/Release/ClaudeMonitor.app /Applications/

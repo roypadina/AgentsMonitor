@@ -360,3 +360,54 @@ final class SettingsCodableTests: XCTestCase {
         XCTAssertEqual(decoded, Settings())
     }
 }
+
+// MARK: - 7. Menu bar text
+
+@MainActor
+final class MenuBarTextTests: XCTestCase {
+    private func store(names: [String], percents: [Int?]) -> AppStore {
+        let store = AppStore()
+        store.accounts = names.map { Account(name: $0, kind: .local(configDirPath: "/tmp/\($0)")) }
+        for (account, percent) in zip(store.accounts, percents) {
+            guard let percent else { store.states[account.id] = .notLoggedIn; continue }
+            let limit = LimitInfo(kind: "session", group: "session", percent: percent, severity: .normal,
+                                  resetsAt: nil, modelDisplayName: nil, isActive: true)
+            store.states[account.id] = .ok(UsageSnapshot(limits: [limit], spend: nil))
+        }
+        return store
+    }
+
+    func testPerAccountShowsEveryAccountWithTags() {
+        let s = store(names: ["claude", "claude2"], percents: [96, 45])
+        XCTAssertEqual(s.menuBarText, "c 96% · c2 45%")
+    }
+
+    func testSingleAccountOmitsTag() {
+        let s = store(names: ["claude"], percents: [96])
+        XCTAssertEqual(s.menuBarText, "96%")
+    }
+
+    func testAccountsWithoutDataAreSkippedNotBlank() {
+        let s = store(names: ["claude", "claude2"], percents: [nil, 45])
+        XCTAssertEqual(s.menuBarText, "c2 45%")
+    }
+
+    func testFallsBackToWorstWhenPerAccountOff() {
+        let s = store(names: ["claude", "claude2"], percents: [96, 45])
+        s.settings.menuBarPerAccount = false
+        XCTAssertEqual(s.menuBarText, "96%")
+    }
+
+    func testHiddenWhenPercentDisabled() {
+        let s = store(names: ["claude"], percents: [96])
+        s.settings.showPercentInMenuBar = false
+        XCTAssertEqual(s.menuBarText, "")
+    }
+
+    func testCollidingTagsFallBackToNumbering() {
+        let accounts = ["claude", "clive"].map { Account(name: $0, kind: .local(configDirPath: "/tmp/\($0)")) }
+        let tags = AppStore.menuBarTags(for: accounts)
+        XCTAssertEqual(tags[accounts[0].id], "1")
+        XCTAssertEqual(tags[accounts[1].id], "2")
+    }
+}

@@ -8,6 +8,7 @@ public struct Settings: Codable, Equatable, Sendable {
     public var ntfyServer: String = "https://ntfy.sh"
     public var ntfyDefaultTopic: String = ""   // user-local only, never committed
     public var showPercentInMenuBar: Bool = true
+    public var menuBarPerAccount: Bool = true  // one percent per account vs. worst across all
     public var toastEnabled: Bool = true
     public var soundEnabled: Bool = true
     public var extraUsageAlerts: Bool = true   // notify when paid extra usage starts moving
@@ -25,6 +26,7 @@ public struct Settings: Codable, Equatable, Sendable {
         ntfyServer = try c.decodeIfPresent(String.self, forKey: .ntfyServer) ?? d.ntfyServer
         ntfyDefaultTopic = try c.decodeIfPresent(String.self, forKey: .ntfyDefaultTopic) ?? d.ntfyDefaultTopic
         showPercentInMenuBar = try c.decodeIfPresent(Bool.self, forKey: .showPercentInMenuBar) ?? d.showPercentInMenuBar
+        menuBarPerAccount = try c.decodeIfPresent(Bool.self, forKey: .menuBarPerAccount) ?? d.menuBarPerAccount
         toastEnabled = try c.decodeIfPresent(Bool.self, forKey: .toastEnabled) ?? d.toastEnabled
         soundEnabled = try c.decodeIfPresent(Bool.self, forKey: .soundEnabled) ?? d.soundEnabled
         extraUsageAlerts = try c.decodeIfPresent(Bool.self, forKey: .extraUsageAlerts) ?? d.extraUsageAlerts
@@ -207,8 +209,44 @@ public final class AppStore {
         return (maxPercent, severity)
     }
 
+    /// Worst percent for one account, or nil when it has no usable snapshot yet.
+    public func worstPercent(for accountId: UUID) -> Int? {
+        switch states[accountId] {
+        case .ok(let snapshot), .stale(let snapshot, _): return snapshot.worstPercent
+        default: return nil
+        }
+    }
+
+    /// Short per-account labels for the menu bar: first letter plus any digits in the name
+    /// ("claude" -> "c", "claude2" -> "c2"). Falls back to 1-based numbering if that collides.
+    public static func menuBarTags(for accounts: [Account]) -> [UUID: String] {
+        func tag(_ name: String) -> String {
+            let lower = name.lowercased()
+            let first = lower.first(where: { $0.isLetter || $0.isNumber }).map(String.init) ?? "?"
+            return first + lower.filter(\.isNumber)
+        }
+        var tags = accounts.reduce(into: [UUID: String]()) { $0[$1.id] = tag($1.name) }
+        if Set(tags.values).count != accounts.count {
+            for (index, account) in accounts.enumerated() { tags[account.id] = String(index + 1) }
+        }
+        return tags
+    }
+
     public var menuBarText: String {
-        guard settings.showPercentInMenuBar, let worst else { return "" }
+        guard settings.showPercentInMenuBar else { return "" }
+
+        if settings.menuBarPerAccount {
+            let tags = Self.menuBarTags(for: accounts)
+            let single = accounts.count == 1
+            let parts = accounts.compactMap { account -> String? in
+                guard let percent = worstPercent(for: account.id) else { return nil }
+                // One account needs no tag — it would just be noise.
+                return single ? "\(percent)%" : "\(tags[account.id] ?? "?") \(percent)%"
+            }
+            if !parts.isEmpty { return parts.joined(separator: " · ") }
+        }
+
+        guard let worst else { return "" }
         return "\(worst.percent)%"
     }
 

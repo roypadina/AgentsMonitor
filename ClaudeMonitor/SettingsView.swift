@@ -302,6 +302,13 @@ private struct GeneralTab: View {
             }
 
             Toggle("Show percent in menu bar", isOn: bindingBool(\.showPercentInMenuBar))
+            VStack(alignment: .leading, spacing: 2) {
+                Toggle("One percent per account", isOn: bindingBool(\.menuBarPerAccount))
+                    .disabled(!store.settings.showPercentInMenuBar)
+                Text(store.menuBarText.isEmpty ? "Menu bar: (hidden)" : "Menu bar: \(store.menuBarText)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             Toggle("Toast notifications", isOn: bindingBool(\.toastEnabled))
             Toggle("Sound", isOn: bindingBool(\.soundEnabled))
         }
