@@ -365,41 +365,73 @@ final class SettingsCodableTests: XCTestCase {
 
 @MainActor
 final class MenuBarTextTests: XCTestCase {
-    private func store(names: [String], percents: [Int?]) -> AppStore {
+    /// percents: [session, weekly_all, weekly_scoped] per account; nil account = no snapshot.
+    private func store(names: [String], limits: [[Int]?]) -> AppStore {
         let store = AppStore()
+        store.settings.menuBarBlockedDot = false      // opt in per test
         store.accounts = names.map { Account(name: $0, kind: .local(configDirPath: "/tmp/\($0)")) }
-        for (account, percent) in zip(store.accounts, percents) {
-            guard let percent else { store.states[account.id] = .notLoggedIn; continue }
-            let limit = LimitInfo(kind: "session", group: "session", percent: percent, severity: .normal,
-                                  resetsAt: nil, modelDisplayName: nil, isActive: true)
-            store.states[account.id] = .ok(UsageSnapshot(limits: [limit], spend: nil))
+        for (account, percents) in zip(store.accounts, limits) {
+            guard let percents else { store.states[account.id] = .notLoggedIn; continue }
+            let kinds = ["session", "weekly_all", "weekly_scoped"]
+            let infos = zip(kinds, percents).map { kind, percent in
+                LimitInfo(kind: kind, group: nil, percent: percent, severity: .normal,
+                          resetsAt: nil, modelDisplayName: kind == "weekly_scoped" ? "Fable" : nil,
+                          isActive: true)
+            }
+            store.states[account.id] = .ok(UsageSnapshot(limits: infos, spend: nil))
         }
         return store
     }
 
     func testPerAccountShowsEveryAccountWithTags() {
-        let s = store(names: ["claude", "claude2"], percents: [96, 45])
-        XCTAssertEqual(s.menuBarText, "c 96% · c2 45%")
+        let s = store(names: ["claude", "claude2"], limits: [[37, 85, 100], [10, 28, 12]])
+        XCTAssertEqual(s.menuBarText, "c 100% · c2 28%", "defaults to the worst limit per account")
     }
 
     func testSingleAccountOmitsTag() {
-        let s = store(names: ["claude"], percents: [96])
+        let s = store(names: ["claude"], limits: [[37, 85, 96]])
         XCTAssertEqual(s.menuBarText, "96%")
+    }
+
+    func testMetricSelectsTheRequestedLimit() {
+        let s = store(names: ["claude", "claude2"], limits: [[37, 85, 100], [10, 28, 12]])
+        s.settings.menuBarMetric = .session
+        XCTAssertEqual(s.menuBarText, "c 37% · c2 10%")
+        s.settings.menuBarMetric = .weekly
+        XCTAssertEqual(s.menuBarText, "c 85% · c2 28%")
+        s.settings.menuBarMetric = .modelScoped
+        XCTAssertEqual(s.menuBarText, "c 100% · c2 12%")
+    }
+
+    func testOnlyCheckedAccountsAppear() {
+        let s = store(names: ["claude", "claude2"], limits: [[37, 85, 100], [10, 28, 12]])
+        s.accounts[0].showInMenuBar = false
+        XCTAssertEqual(s.menuBarText, "28%", "one remaining account drops the tag too")
+    }
+
+    func testBlockedDotUsesSessionAndWeeklyOnly() {
+        let s = store(names: ["claude", "claude2"], limits: [[37, 85, 100], [100, 28, 12]])
+        s.settings.menuBarBlockedDot = true
+        // claude: only the per-model window is exhausted -> not blocked. claude2: session at 100 -> blocked.
+        XCTAssertEqual(s.menuBarText, "c \(AppStore.freeGlyph) 100% · c2 \(AppStore.blockedGlyph) 100%")
+    }
+
+    func testDotOnlyModeWhenPercentHidden() {
+        let s = store(names: ["claude", "claude2"], limits: [[37, 85, 100], [100, 28, 12]])
+        s.settings.menuBarBlockedDot = true
+        s.settings.showPercentInMenuBar = false
+        XCTAssertEqual(s.menuBarText, "\(AppStore.freeGlyph) · \(AppStore.blockedGlyph)")
     }
 
     func testAccountsWithoutDataAreSkippedNotBlank() {
-        let s = store(names: ["claude", "claude2"], percents: [nil, 45])
-        XCTAssertEqual(s.menuBarText, "c2 45%")
+        let s = store(names: ["claude", "claude2"], limits: [nil, [10, 28, 12]])
+        // Tag stays: it keys off configured accounts, so the label doesn't reshuffle
+        // when the other account's first snapshot lands.
+        XCTAssertEqual(s.menuBarText, "c2 28%")
     }
 
-    func testFallsBackToWorstWhenPerAccountOff() {
-        let s = store(names: ["claude", "claude2"], percents: [96, 45])
-        s.settings.menuBarPerAccount = false
-        XCTAssertEqual(s.menuBarText, "96%")
-    }
-
-    func testHiddenWhenPercentDisabled() {
-        let s = store(names: ["claude"], percents: [96])
+    func testHiddenWhenEverythingDisabled() {
+        let s = store(names: ["claude"], limits: [[37, 85, 96]])
         s.settings.showPercentInMenuBar = false
         XCTAssertEqual(s.menuBarText, "")
     }
@@ -409,5 +441,24 @@ final class MenuBarTextTests: XCTestCase {
         let tags = AppStore.menuBarTags(for: accounts)
         XCTAssertEqual(tags[accounts[0].id], "1")
         XCTAssertEqual(tags[accounts[1].id], "2")
+    }
+}
+
+// MARK: - 8. Account forward-compatibility
+
+final class AccountCodableTests: XCTestCase {
+    /// An accounts blob from an older version must survive: a strict throw drops the whole list,
+    /// and remote accounts cannot be rediscovered — the user would have to repaste credentials.
+    func testOldAccountBlobDecodesWithDefaults() throws {
+        let old = """
+        [{"id":"F9C7F579-8D7E-4636-9066-89392CFB45DC","name":"claude",
+          "kind":{"local":{"configDirPath":"/Users/x/.claude"}},"desktopAlerts":true,"ntfyEnabled":true}]
+        """.data(using: .utf8)!
+
+        let accounts = try JSONDecoder().decode([Account].self, from: old)
+        XCTAssertEqual(accounts.count, 1)
+        XCTAssertEqual(accounts[0].name, "claude")
+        XCTAssertTrue(accounts[0].ntfyEnabled)
+        XCTAssertTrue(accounts[0].showInMenuBar, "new field defaults to shown")
     }
 }

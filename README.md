@@ -32,9 +32,12 @@ in Claude Code itself:
 - **Extra-usage spend this month** (`$728.60 / $800.00 · 91%`)
 - Severity coloring (green / orange / red) exactly as the API reports it, a **pacing tick** on
   each bar (where an even burn rate would put you right now), and a "resets in 2h 14m" countdown
-- Menu-bar label: one percent **per account**, each with a short auto-derived tag
-  (`c 100% · c2 28%`) — or the single worst percent across all accounts, your choice
-  (Settings → General)
+- Menu-bar label, fully configurable (Settings → General + the per-account **Menu bar**
+  checkbox): pick **which accounts** appear, **which value** each one shows (worst limit,
+  session, weekly, or per-model weekly), and an optional **blocked indicator** — 🟢/🔴 per
+  account when a session or weekly limit is exhausted. Per-model limits are deliberately
+  ignored there: with one model maxed you can still work on another. Example:
+  `c 🟢 100% · c2 🔴 28%`
 
 ## Accounts
 
@@ -134,7 +137,7 @@ prompt.
 ## Build & test
 
 ```bash
-swift test --package-path ClaudeMonitorKit          # 29 unit tests (parsing, derivation, alert engine, credentials, settings, menu bar)
+swift test --package-path ClaudeMonitorKit          # 33 unit tests (parsing, derivation, alert engine, credentials, settings, menu bar)
 xcodebuild -workspace ClaudeMonitor.xcworkspace -scheme ClaudeMonitor \
   -configuration Release -derivedDataPath build build
 cp -R build/Build/Products/Release/ClaudeMonitor.app /Applications/

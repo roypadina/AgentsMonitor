@@ -30,17 +30,47 @@ public struct Account: Codable, Identifiable, Hashable, Sendable {
     public var desktopAlerts: Bool       // default true
     public var ntfyEnabled: Bool         // default false
     public var ntfyTopicOverride: String?
+    public var showInMenuBar: Bool = true
     // NEVER holds a token. UserDefaults is a plaintext plist.
 
     public init(id: UUID = UUID(), name: String, kind: AccountKind,
                 desktopAlerts: Bool = true, ntfyEnabled: Bool = false,
-                ntfyTopicOverride: String? = nil) {
+                ntfyTopicOverride: String? = nil, showInMenuBar: Bool = true) {
         self.id = id
         self.name = name
         self.kind = kind
         self.desktopAlerts = desktopAlerts
         self.ntfyEnabled = ntfyEnabled
         self.ntfyTopicOverride = ntfyTopicOverride
+        self.showInMenuBar = showInMenuBar
+    }
+
+    /// Lenient like `Settings`: an accounts blob written by an older version lacks newly added
+    /// keys, and a strict throw here would drop the user's whole account list — including remote
+    /// accounts, which cannot be rediscovered and would need their credentials pasted again.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        kind = try c.decode(AccountKind.self, forKey: .kind)
+        desktopAlerts = try c.decodeIfPresent(Bool.self, forKey: .desktopAlerts) ?? true
+        ntfyEnabled = try c.decodeIfPresent(Bool.self, forKey: .ntfyEnabled) ?? false
+        ntfyTopicOverride = try c.decodeIfPresent(String.self, forKey: .ntfyTopicOverride)
+        showInMenuBar = try c.decodeIfPresent(Bool.self, forKey: .showInMenuBar) ?? true
+    }
+}
+
+/// Which number the menu bar shows per account.
+public enum MenuBarMetric: String, Codable, CaseIterable, Sendable {
+    case worst, session, weekly, modelScoped
+
+    public var label: String {
+        switch self {
+        case .worst: return "Worst limit"
+        case .session: return "Session (5h)"
+        case .weekly: return "Weekly"
+        case .modelScoped: return "Weekly (per model)"
+        }
     }
 }
 

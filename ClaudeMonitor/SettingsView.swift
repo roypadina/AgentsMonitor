@@ -84,6 +84,8 @@ private struct AccountsTab: View {
                     .toggleStyle(.checkbox)
                 Toggle("ntfy", isOn: binding(for: account, \.ntfyEnabled))
                     .toggleStyle(.checkbox)
+                Toggle("Menu bar", isOn: binding(for: account, \.showInMenuBar))
+                    .toggleStyle(.checkbox)
                 TextField("topic override", text: bindingOptional(for: account, \.ntfyTopicOverride))
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 120)
@@ -301,13 +303,26 @@ private struct GeneralTab: View {
                     .foregroundStyle(LoginItem.status == .requiresApproval ? Color.orange : .secondary)
             }
 
-            Toggle("Show percent in menu bar", isOn: bindingBool(\.showPercentInMenuBar))
-            VStack(alignment: .leading, spacing: 2) {
-                Toggle("One percent per account", isOn: bindingBool(\.menuBarPerAccount))
-                    .disabled(!store.settings.showPercentInMenuBar)
-                Text(store.menuBarText.isEmpty ? "Menu bar: (hidden)" : "Menu bar: \(store.menuBarText)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            Section("Menu bar") {
+                Toggle("Show percent", isOn: bindingBool(\.showPercentInMenuBar))
+                Picker("Value", selection: metricBinding) {
+                    ForEach(MenuBarMetric.allCases, id: \.self) { metric in
+                        Text(metric.label).tag(metric)
+                    }
+                }
+                .disabled(!store.settings.showPercentInMenuBar)
+                VStack(alignment: .leading, spacing: 2) {
+                    Toggle("Blocked indicator", isOn: bindingBool(\.menuBarBlockedDot))
+                    Text("\(AppStore.freeGlyph) / \(AppStore.blockedGlyph) per account when a session or weekly limit is exhausted. Per-model limits are ignored — you can still work on another model.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(store.menuBarText.isEmpty ? "Preview: (hidden)" : "Preview: \(store.menuBarText)")
+                    Text("Choose which accounts appear with the Menu bar checkbox in the Accounts tab.")
+                        .foregroundStyle(.secondary)
+                }
+                .font(.caption)
             }
             Toggle("Toast notifications", isOn: bindingBool(\.toastEnabled))
             Toggle("Sound", isOn: bindingBool(\.soundEnabled))
@@ -324,6 +339,13 @@ private struct GeneralTab: View {
                 store.save()
                 store.startPolling() // restart the sleep loop so the new interval takes effect now
             }
+        )
+    }
+
+    private var metricBinding: Binding<MenuBarMetric> {
+        Binding(
+            get: { store.settings.menuBarMetric },
+            set: { store.settings.menuBarMetric = $0; store.save() }
         )
     }
 

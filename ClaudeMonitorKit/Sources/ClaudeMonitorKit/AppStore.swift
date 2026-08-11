@@ -8,7 +8,8 @@ public struct Settings: Codable, Equatable, Sendable {
     public var ntfyServer: String = "https://ntfy.sh"
     public var ntfyDefaultTopic: String = ""   // user-local only, never committed
     public var showPercentInMenuBar: Bool = true
-    public var menuBarPerAccount: Bool = true  // one percent per account vs. worst across all
+    public var menuBarMetric: MenuBarMetric = .worst
+    public var menuBarBlockedDot: Bool = true  // green/red dot per account (session/weekly only)
     public var toastEnabled: Bool = true
     public var soundEnabled: Bool = true
     public var extraUsageAlerts: Bool = true   // notify when paid extra usage starts moving
@@ -26,7 +27,8 @@ public struct Settings: Codable, Equatable, Sendable {
         ntfyServer = try c.decodeIfPresent(String.self, forKey: .ntfyServer) ?? d.ntfyServer
         ntfyDefaultTopic = try c.decodeIfPresent(String.self, forKey: .ntfyDefaultTopic) ?? d.ntfyDefaultTopic
         showPercentInMenuBar = try c.decodeIfPresent(Bool.self, forKey: .showPercentInMenuBar) ?? d.showPercentInMenuBar
-        menuBarPerAccount = try c.decodeIfPresent(Bool.self, forKey: .menuBarPerAccount) ?? d.menuBarPerAccount
+        menuBarMetric = try c.decodeIfPresent(MenuBarMetric.self, forKey: .menuBarMetric) ?? d.menuBarMetric
+        menuBarBlockedDot = try c.decodeIfPresent(Bool.self, forKey: .menuBarBlockedDot) ?? d.menuBarBlockedDot
         toastEnabled = try c.decodeIfPresent(Bool.self, forKey: .toastEnabled) ?? d.toastEnabled
         soundEnabled = try c.decodeIfPresent(Bool.self, forKey: .soundEnabled) ?? d.soundEnabled
         extraUsageAlerts = try c.decodeIfPresent(Bool.self, forKey: .extraUsageAlerts) ?? d.extraUsageAlerts
@@ -211,11 +213,38 @@ public final class AppStore {
 
     /// Worst percent for one account, or nil when it has no usable snapshot yet.
     public func worstPercent(for accountId: UUID) -> Int? {
+        snapshot(for: accountId)?.worstPercent
+    }
+
+    /// The percent for the configured metric, or nil when the account has no such limit.
+    public func percent(for accountId: UUID, metric: MenuBarMetric) -> Int? {
+        guard let snapshot = snapshot(for: accountId) else { return nil }
+        switch metric {
+        case .worst: return snapshot.worstPercent
+        case .session: return snapshot.limits.first { $0.kind == "session" }?.percent
+        case .weekly: return snapshot.limits.first { $0.kind == "weekly_all" }?.percent
+        case .modelScoped: return snapshot.limits.filter { $0.kind == "weekly_scoped" }.map(\.percent).max()
+        }
+    }
+
+    /// Blocked = a limit you cannot work around is exhausted. Per-model windows are ignored on
+    /// purpose: with Fable at 100% you can still work on another model.
+    public func isBlocked(_ accountId: UUID) -> Bool {
+        guard let snapshot = snapshot(for: accountId) else { return false }
+        return snapshot.limits.contains { ($0.kind == "session" || $0.kind == "weekly_all") && $0.percent >= 100 }
+    }
+
+    private func snapshot(for accountId: UUID) -> UsageSnapshot? {
         switch states[accountId] {
-        case .ok(let snapshot), .stale(let snapshot, _): return snapshot.worstPercent
+        case .ok(let snapshot), .stale(let snapshot, _): return snapshot
         default: return nil
         }
     }
+
+    /// Blocked/free markers. Emoji render in color in the menu bar where SwiftUI's template
+    /// rendering would strip a tinted shape — verified on screen before shipping.
+    public static let blockedGlyph = "\u{1F534}"   // red circle
+    public static let freeGlyph = "\u{1F7E2}"      // green circle
 
     /// Short per-account labels for the menu bar: first letter plus any digits in the name
     /// ("claude" -> "c", "claude2" -> "c2"). Falls back to 1-based numbering if that collides.
@@ -232,21 +261,36 @@ public final class AppStore {
         return tags
     }
 
+    /// Accounts the user chose to show in the menu bar (all of them by default).
+    public var menuBarAccounts: [Account] {
+        accounts.filter(\.showInMenuBar)
+    }
+
     public var menuBarText: String {
-        guard settings.showPercentInMenuBar else { return "" }
+        let shown = menuBarAccounts
+        guard settings.showPercentInMenuBar || settings.menuBarBlockedDot else { return "" }
 
-        if settings.menuBarPerAccount {
-            let tags = Self.menuBarTags(for: accounts)
-            let single = accounts.count == 1
-            let parts = accounts.compactMap { account -> String? in
-                guard let percent = worstPercent(for: account.id) else { return nil }
-                // One account needs no tag — it would just be noise.
-                return single ? "\(percent)%" : "\(tags[account.id] ?? "?") \(percent)%"
+        let tags = Self.menuBarTags(for: shown)
+        let single = shown.count == 1
+        let parts = shown.compactMap { account -> String? in
+            let percent = percent(for: account.id, metric: settings.menuBarMetric)
+            let dot = settings.menuBarBlockedDot
+                ? (percent == nil ? nil : (isBlocked(account.id) ? Self.blockedGlyph : Self.freeGlyph))
+                : nil
+            guard percent != nil || dot != nil else { return nil }
+
+            var piece = ""
+            if !single, settings.showPercentInMenuBar { piece += (tags[account.id] ?? "?") + " " }
+            if let dot { piece += dot }
+            if settings.showPercentInMenuBar, let percent {
+                if !piece.isEmpty && !piece.hasSuffix(" ") { piece += " " }
+                piece += "\(percent)%"
             }
-            if !parts.isEmpty { return parts.joined(separator: " · ") }
+            return piece.isEmpty ? nil : piece
         }
+        if !parts.isEmpty { return parts.joined(separator: " · ") }
 
-        guard let worst else { return "" }
+        guard settings.showPercentInMenuBar, let worst else { return "" }
         return "\(worst.percent)%"
     }
 
