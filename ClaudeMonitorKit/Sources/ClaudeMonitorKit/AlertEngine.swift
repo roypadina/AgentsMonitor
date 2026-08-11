@@ -39,6 +39,8 @@ public struct Alert: Equatable, Sendable {
 
 public struct AlertEngine {
     public var thresholds: AlertThresholds
+    /// Notify the moment paid extra usage starts being consumed (see `evaluateSpendBurst`).
+    public var extraUsageAlerts: Bool = true
 
     /// The server recomputes `resets_at` on every request — the same logical window jitters by
     /// up to ~2s between polls (observed live: `19:00:00.399` vs `18:59:59.399`). Windows are
@@ -47,10 +49,24 @@ public struct AlertEngine {
     /// phone pushes in 12h.)
     public static let windowTolerance: TimeInterval = 120
 
+    /// How long spend must stay flat before the next increase counts as a new burst.
+    public static let spendBurstIdle: TimeInterval = 30 * 60
+
     /// De-dupe/re-arm memory, keyed `"<accountId>|<limitKey>"`. Codable so it survives relaunch.
+    /// The spend-watch entry (`|spendWatch`) uses the last two fields instead of level/window.
     public struct MemoryEntry: Codable, Equatable, Sendable {
         public var level: AlertLevel
         public var window: Date?
+        // Optional so entries persisted by older versions still decode.
+        public var usedMinor: Int?
+        public var lastIncreaseAt: Date?
+
+        public init(level: AlertLevel, window: Date?, usedMinor: Int? = nil, lastIncreaseAt: Date? = nil) {
+            self.level = level
+            self.window = window
+            self.usedMinor = usedMinor
+            self.lastIncreaseAt = lastIncreaseAt
+        }
     }
     private var memory: [String: MemoryEntry] = [:]
 
@@ -83,7 +99,10 @@ public struct AlertEngine {
         case .ok(let snapshot), .stale(let snapshot, _):
             var candidates = snapshot.limits
             if let spendLimit = snapshot.spend?.asLimitInfo { candidates.append(spendLimit) }
-            let alerts = candidates.compactMap { evaluateLimit(account: account, limit: $0) }
+            var alerts = candidates.compactMap { evaluateLimit(account: account, limit: $0) }
+            if let burst = evaluateSpendBurst(account: account, spend: snapshot.spend, now: now) {
+                alerts.append(burst)
+            }
             clearAuthEntry(accountId: account.id)
             return alerts
 
@@ -125,6 +144,39 @@ public struct AlertEngine {
                       title: "\(account.name) — \(limit.label)",
                       body: "\(limit.percent)% used",
                       level: newLevel)
+    }
+
+    /// Fires the moment paid extra usage starts moving — the point where a session stops being
+    /// covered by the plan and starts costing money. Once per burst: while spend keeps climbing
+    /// it stays quiet, and it re-arms after `spendBurstIdle` of no movement. The first
+    /// observation only records a baseline, so adding an account never alerts on past spend.
+    private mutating func evaluateSpendBurst(account: Account, spend: SpendInfo?, now: Date) -> Alert? {
+        guard extraUsageAlerts, let spend, spend.enabled else { return nil }
+        let key = "\(account.id)|spendWatch"
+
+        guard let stored = memory[key], let lastUsed = stored.usedMinor else {
+            memory[key] = MemoryEntry(level: .none, window: nil, usedMinor: spend.usedMinor)
+            return nil
+        }
+        guard spend.usedMinor != lastUsed else { return nil }
+        guard spend.usedMinor > lastUsed else {
+            // Monthly reset (or a plan change) — re-baseline, don't alert.
+            memory[key] = MemoryEntry(level: .none, window: nil, usedMinor: spend.usedMinor)
+            return nil
+        }
+
+        let delta = spend.usedMinor - lastUsed
+        let isNewBurst = stored.lastIncreaseAt.map { now.timeIntervalSince($0) >= Self.spendBurstIdle } ?? true
+        memory[key] = MemoryEntry(level: .none, window: nil, usedMinor: spend.usedMinor, lastIncreaseAt: now)
+        guard isNewBurst else { return nil }
+
+        Self.log.info("extra usage started for \(account.name, privacy: .public): +\(delta) minor units")
+        let monthly = spend.limitFormatted.map { "\(spend.usedFormatted) of \($0) this month" }
+            ?? "\(spend.usedFormatted) this month"
+        return Alert(accountId: account.id, accountName: account.name, key: "spendBurst",
+                     title: "\(account.name) — extra usage started",
+                     body: "\(spend.format(minor: delta)) just used · \(monthly)",
+                     level: .warning)
     }
 
     /// Same logical window iff both absent, or both present within `windowTolerance`.

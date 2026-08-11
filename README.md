@@ -59,6 +59,11 @@ re-arms it. A single failed poll on a local account is treated as a likely token
 not a real auth failure: the alert only fires on two consecutive strikes, and the memory of
 what's already fired survives an app relaunch.
 
+There's also a dedicated **extra-usage alert**: the moment paid usage starts being consumed
+(spend moves at all), you get one notification with the amount and the running monthly total —
+then it stays quiet until spending pauses for 30 minutes. That's the signal that a session has
+stopped being covered by your plan and started costing money. Toggle in Settings → Alerts.
+
 Three sinks, each toggleable per account in Settings:
 - **Desktop** — a standard notification (grant permission once when macOS asks on first launch)
 - **ntfy** — a JSON POST to your server/topic, priority 3 (warning) / 4 (critical); each account

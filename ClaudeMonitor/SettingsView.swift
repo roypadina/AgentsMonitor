@@ -184,6 +184,12 @@ private struct AlertsTab: View {
                 Stepper("Warning: \(store.settings.thresholds.warning)%", value: warningBinding, in: 1...99)
                 Stepper("Critical: \(store.settings.thresholds.critical)%", value: criticalBinding, in: 1...100)
             }
+            Section("Extra usage") {
+                Toggle("Notify when extra usage starts", isOn: extraUsageBinding)
+                Text("Alerts the moment paid usage starts being consumed, then stays quiet until spending pauses for 30 minutes.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             Section("ntfy") {
                 TextField("Server", text: bindingString(\.ntfyServer))
                 TextField("Default topic", text: bindingString(\.ntfyDefaultTopic))
@@ -196,6 +202,13 @@ private struct AlertsTab: View {
         }
         .padding()
         .onAppear { refreshAuthStatus() }
+    }
+
+    private var extraUsageBinding: Binding<Bool> {
+        Binding(
+            get: { store.settings.extraUsageAlerts },
+            set: { store.settings.extraUsageAlerts = $0; store.save() }
+        )
     }
 
     private var warningBinding: Binding<Int> {

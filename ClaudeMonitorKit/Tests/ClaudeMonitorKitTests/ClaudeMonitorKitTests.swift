@@ -195,6 +195,60 @@ final class AlertEngineTests: XCTestCase {
         XCTAssertEqual(engine.evaluate(account: acct, state: .needsReauth).count, 1, "re-fires on second strike after recovery")
     }
 
+    private func spendState(usedMinor: Int, limitMinor: Int? = 80_000) -> AccountState {
+        let spend = SpendInfo(usedMinor: usedMinor, limitMinor: limitMinor, exponent: 2, currency: "USD",
+                              percent: limitMinor.map { min(100, usedMinor * 100 / max($0, 1)) } ?? 0,
+                              severity: .normal, enabled: true)
+        return .ok(UsageSnapshot(limits: [], spend: spend))
+    }
+
+    private func burstAlerts(_ alerts: [Alert]) -> [Alert] { alerts.filter { $0.key == "spendBurst" } }
+
+    func testExtraUsageBurstFiresOnceThenReArmsWhenSpendingPauses() {
+        var engine = AlertEngine()
+        let acct = account()
+        let t0 = Date(timeIntervalSince1970: 1_000_000)
+
+        // First sighting is only a baseline — adding an account must never alert on past spend.
+        XCTAssertEqual(burstAlerts(engine.evaluate(account: acct, state: spendState(usedMinor: 5_000), now: t0)).count, 0)
+
+        // Spend starts moving -> exactly one alert, carrying the delta.
+        let fired = burstAlerts(engine.evaluate(account: acct, state: spendState(usedMinor: 5_250), now: t0.addingTimeInterval(180)))
+        XCTAssertEqual(fired.count, 1)
+        XCTAssertTrue(fired[0].body.contains("$2.50"), "delta formatted as money, got: \(fired[0].body)")
+        XCTAssertTrue(fired[0].body.contains("$52.50"), "running monthly total, got: \(fired[0].body)")
+
+        // Still burning through the same burst -> silent.
+        XCTAssertEqual(burstAlerts(engine.evaluate(account: acct, state: spendState(usedMinor: 6_000), now: t0.addingTimeInterval(360))).count, 0)
+        XCTAssertEqual(burstAlerts(engine.evaluate(account: acct, state: spendState(usedMinor: 9_000), now: t0.addingTimeInterval(900))).count, 0)
+
+        // Flat spend -> no alerts, and no re-arm from flatness alone.
+        XCTAssertEqual(burstAlerts(engine.evaluate(account: acct, state: spendState(usedMinor: 9_000), now: t0.addingTimeInterval(3_000))).count, 0)
+
+        // After the idle window, the next increase is a new burst.
+        XCTAssertEqual(burstAlerts(engine.evaluate(account: acct, state: spendState(usedMinor: 9_100), now: t0.addingTimeInterval(900 + AlertEngine.spendBurstIdle + 1))).count, 1)
+    }
+
+    func testExtraUsageBurstIgnoresMonthlyResetAndRespectsToggle() {
+        var engine = AlertEngine()
+        let acct = account()
+        let t0 = Date(timeIntervalSince1970: 2_000_000)
+
+        _ = engine.evaluate(account: acct, state: spendState(usedMinor: 70_000), now: t0)
+        // Monthly reset: spend drops. Re-baseline silently, and don't alert on the drop.
+        XCTAssertEqual(burstAlerts(engine.evaluate(account: acct, state: spendState(usedMinor: 0), now: t0.addingTimeInterval(60))).count, 0)
+        // Next real increase alerts against the NEW baseline, not the pre-reset one.
+        let fired = burstAlerts(engine.evaluate(account: acct, state: spendState(usedMinor: 100), now: t0.addingTimeInterval(120)))
+        XCTAssertEqual(fired.count, 1)
+        XCTAssertTrue(fired[0].body.contains("$1.00"), "delta from post-reset baseline, got: \(fired[0].body)")
+
+        // Toggle off -> no burst alerts at all.
+        var off = AlertEngine()
+        off.extraUsageAlerts = false
+        _ = off.evaluate(account: acct, state: spendState(usedMinor: 100), now: t0)
+        XCTAssertEqual(burstAlerts(off.evaluate(account: acct, state: spendState(usedMinor: 5_000), now: t0.addingTimeInterval(60))).count, 0)
+    }
+
     func testNeedsCredentialsRepasteFiresOnceUnderAuthKey() {
         var engine = AlertEngine()
         let acct = account()
@@ -279,5 +333,30 @@ final class CredentialsTests: XCTestCase {
 
         ladder.reset()
         XCTAssertEqual(ladder.advance(), 3 * 60, "any 2xx resets to rung 0")
+    }
+}
+
+// MARK: - 6. Settings forward-compatibility
+
+final class SettingsCodableTests: XCTestCase {
+    /// A blob written by v1.0.0 (no `extraUsageAlerts` key) must still decode, keeping the user's
+    /// ntfy topic and thresholds. Strict decoding would throw and silently reset everything.
+    func testOldSettingsBlobDecodesWithoutLosingUserValues() throws {
+        let old = """
+        {"pollSeconds":300,"thresholds":{"warning":70,"critical":90},"ntfyServer":"https://ntfy.example",
+         "ntfyDefaultTopic":"my-topic","showPercentInMenuBar":false,"toastEnabled":false,"soundEnabled":false}
+        """.data(using: .utf8)!
+
+        let decoded = try JSONDecoder().decode(Settings.self, from: old)
+        XCTAssertEqual(decoded.pollSeconds, 300)
+        XCTAssertEqual(decoded.thresholds.warning, 70)
+        XCTAssertEqual(decoded.ntfyDefaultTopic, "my-topic")
+        XCTAssertFalse(decoded.soundEnabled)
+        XCTAssertTrue(decoded.extraUsageAlerts, "new field falls back to its default")
+    }
+
+    func testEmptyObjectDecodesToDefaults() throws {
+        let decoded = try JSONDecoder().decode(Settings.self, from: "{}".data(using: .utf8)!)
+        XCTAssertEqual(decoded, Settings())
     }
 }

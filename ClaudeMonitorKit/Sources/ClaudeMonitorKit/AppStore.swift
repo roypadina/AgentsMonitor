@@ -10,8 +10,25 @@ public struct Settings: Codable, Equatable, Sendable {
     public var showPercentInMenuBar: Bool = true
     public var toastEnabled: Bool = true
     public var soundEnabled: Bool = true
+    public var extraUsageAlerts: Bool = true   // notify when paid extra usage starts moving
 
     public init() {}
+
+    /// Every field decoded with `decodeIfPresent`: a settings blob written by an older version is
+    /// missing newly added keys, and strict decoding would throw — which the caller turns into
+    /// "fall back to defaults", silently wiping the user's ntfy topic and thresholds on upgrade.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = Settings()
+        pollSeconds = try c.decodeIfPresent(Int.self, forKey: .pollSeconds) ?? d.pollSeconds
+        thresholds = try c.decodeIfPresent(AlertThresholds.self, forKey: .thresholds) ?? d.thresholds
+        ntfyServer = try c.decodeIfPresent(String.self, forKey: .ntfyServer) ?? d.ntfyServer
+        ntfyDefaultTopic = try c.decodeIfPresent(String.self, forKey: .ntfyDefaultTopic) ?? d.ntfyDefaultTopic
+        showPercentInMenuBar = try c.decodeIfPresent(Bool.self, forKey: .showPercentInMenuBar) ?? d.showPercentInMenuBar
+        toastEnabled = try c.decodeIfPresent(Bool.self, forKey: .toastEnabled) ?? d.toastEnabled
+        soundEnabled = try c.decodeIfPresent(Bool.self, forKey: .soundEnabled) ?? d.soundEnabled
+        extraUsageAlerts = try c.decodeIfPresent(Bool.self, forKey: .extraUsageAlerts) ?? d.extraUsageAlerts
+    }
 }
 
 @MainActor
@@ -48,6 +65,7 @@ public final class AppStore {
             settings = decoded
         }
         alertEngine = AlertEngine(thresholds: settings.thresholds)
+        alertEngine.extraUsageAlerts = settings.extraUsageAlerts
         // Restore alert de-dupe memory so a relaunch doesn't re-fire everything already alerted.
         if let data = UserDefaults.standard.data(forKey: Self.alertMemoryKey) {
             alertEngine.restoreMemory(from: data)
@@ -66,6 +84,10 @@ public final class AppStore {
     }
 
     public func save() {
+        // Settings edits must reach the live engine — otherwise a threshold or toggle change
+        // only takes effect after a relaunch. Every Settings control routes through save().
+        alertEngine.thresholds = settings.thresholds
+        alertEngine.extraUsageAlerts = settings.extraUsageAlerts
         if let data = try? JSONEncoder().encode(accounts) {
             UserDefaults.standard.set(data, forKey: Self.accountsKey)
         }

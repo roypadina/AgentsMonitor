@@ -121,6 +121,11 @@ public struct SpendInfo: Codable, Hashable, Sendable {
     }
 
     // Decimal, not Double — money. NumberFormatter currency code comes from the payload, never the user's locale.
+    /// Formats an arbitrary minor-unit amount (e.g. a delta) in this payload's currency.
+    public func format(minor: Int) -> String {
+        SpendInfo.formatMoney(minor: minor, exponent: exponent, currency: currency)
+    }
+
     private static func formatMoney(minor: Int, exponent: Int, currency: String) -> String {
         let amount = Decimal(minor) / pow(Decimal(10), exponent)
         let formatter = NumberFormatter()
