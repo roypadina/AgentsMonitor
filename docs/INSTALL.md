@@ -7,6 +7,7 @@ account needed to build or run it.
 
 ```bash
 brew tap roypadina/tap
+brew trust --cask roypadina/tap/claude-monitor
 brew install --cask claude-monitor
 ```
 

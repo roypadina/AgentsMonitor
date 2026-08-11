@@ -75,8 +75,12 @@ Three sinks, each toggleable per account in Settings:
 
 ```bash
 brew tap roypadina/tap
+brew trust --cask roypadina/tap/claude-monitor   # newer Homebrew requires trusting third-party casks
 brew install --cask claude-monitor
 ```
+
+The app is ad-hoc signed (not notarized). After install, either right-click it in
+`/Applications` → **Open**, or clear quarantine: `xattr -dr com.apple.quarantine "/Applications/ClaudeMonitor.app"`.
 
 ### Manual install
 
