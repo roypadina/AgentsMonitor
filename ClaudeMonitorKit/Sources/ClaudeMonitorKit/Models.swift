@@ -66,7 +66,7 @@ public enum MenuBarMetric: String, Codable, CaseIterable, Sendable {
 
     public var label: String {
         switch self {
-        case .worst: return "Worst limit"
+        case .worst: return "Session or weekly (max)"
         case .session: return "Session (5h)"
         case .weekly: return "Weekly"
         case .modelScoped: return "Weekly (per model)"
@@ -151,6 +151,17 @@ public struct SpendInfo: Codable, Hashable, Sendable {
     }
 
     // Decimal, not Double — money. NumberFormatter currency code comes from the payload, never the user's locale.
+    /// Whole-currency-unit form for the menu bar, where cents are noise: "$739".
+    public var usedCompactFormatted: String {
+        let amount = Decimal(usedMinor) / pow(Decimal(10), exponent)
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = currency
+        formatter.locale = Locale(identifier: "en_US")
+        formatter.maximumFractionDigits = 0
+        return formatter.string(from: amount as NSDecimalNumber) ?? "\(currency) \(amount)"
+    }
+
     /// Formats an arbitrary minor-unit amount (e.g. a delta) in this payload's currency.
     public func format(minor: Int) -> String {
         SpendInfo.formatMoney(minor: minor, exponent: exponent, currency: currency)
@@ -196,6 +207,20 @@ public struct UsageSnapshot: Sendable, Hashable {
         }
         let spend = (root["spend"] as? [String: Any]).flatMap(parseSpend)
         return UsageSnapshot(limits: limits, spend: spend, fetchedAt: fetchedAt)
+    }
+
+    /// Max of the windows that can actually stop you: session and weekly-all. Per-model windows
+    /// are excluded — a maxed-out model still leaves the others usable — and so is spend, which
+    /// is money, not a block.
+    public var blockingPercent: Int? {
+        limits.filter { $0.kind == "session" || $0.kind == "weekly_all" }.map(\.percent).max()
+    }
+
+    /// Highest per-model window, with the model's name (e.g. 100, "Fable").
+    public var modelScoped: (percent: Int, modelName: String?)? {
+        guard let limit = limits.filter({ $0.kind == "weekly_scoped" }).max(by: { $0.percent < $1.percent })
+        else { return nil }
+        return (limit.percent, limit.modelDisplayName)
     }
 
     private static func computeWorst(limits: [LimitInfo], spend: SpendInfo?) -> (Int, Severity) {

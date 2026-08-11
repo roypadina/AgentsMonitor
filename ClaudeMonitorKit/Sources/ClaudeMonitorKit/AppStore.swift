@@ -9,7 +9,9 @@ public struct Settings: Codable, Equatable, Sendable {
     public var ntfyDefaultTopic: String = ""   // user-local only, never committed
     public var showPercentInMenuBar: Bool = true
     public var menuBarMetric: MenuBarMetric = .worst
-    public var menuBarBlockedDot: Bool = true  // green/red dot per account (session/weekly only)
+    public var menuBarBlockedDot: Bool = true      // green/red dot per account (session/weekly only)
+    public var menuBarShowModelScoped: Bool = false // append the per-model window, e.g. "F 100%"
+    public var menuBarShowSpend: Bool = false       // append extra-usage spend, e.g. "$739"
     public var toastEnabled: Bool = true
     public var soundEnabled: Bool = true
     public var extraUsageAlerts: Bool = true   // notify when paid extra usage starts moving
@@ -29,6 +31,8 @@ public struct Settings: Codable, Equatable, Sendable {
         showPercentInMenuBar = try c.decodeIfPresent(Bool.self, forKey: .showPercentInMenuBar) ?? d.showPercentInMenuBar
         menuBarMetric = try c.decodeIfPresent(MenuBarMetric.self, forKey: .menuBarMetric) ?? d.menuBarMetric
         menuBarBlockedDot = try c.decodeIfPresent(Bool.self, forKey: .menuBarBlockedDot) ?? d.menuBarBlockedDot
+        menuBarShowModelScoped = try c.decodeIfPresent(Bool.self, forKey: .menuBarShowModelScoped) ?? d.menuBarShowModelScoped
+        menuBarShowSpend = try c.decodeIfPresent(Bool.self, forKey: .menuBarShowSpend) ?? d.menuBarShowSpend
         toastEnabled = try c.decodeIfPresent(Bool.self, forKey: .toastEnabled) ?? d.toastEnabled
         soundEnabled = try c.decodeIfPresent(Bool.self, forKey: .soundEnabled) ?? d.soundEnabled
         extraUsageAlerts = try c.decodeIfPresent(Bool.self, forKey: .extraUsageAlerts) ?? d.extraUsageAlerts
@@ -220,7 +224,7 @@ public final class AppStore {
     public func percent(for accountId: UUID, metric: MenuBarMetric) -> Int? {
         guard let snapshot = snapshot(for: accountId) else { return nil }
         switch metric {
-        case .worst: return snapshot.worstPercent
+        case .worst: return snapshot.blockingPercent
         case .session: return snapshot.limits.first { $0.kind == "session" }?.percent
         case .weekly: return snapshot.limits.first { $0.kind == "weekly_all" }?.percent
         case .modelScoped: return snapshot.limits.filter { $0.kind == "weekly_scoped" }.map(\.percent).max()
@@ -268,30 +272,35 @@ public final class AppStore {
 
     public var menuBarText: String {
         let shown = menuBarAccounts
-        guard settings.showPercentInMenuBar || settings.menuBarBlockedDot else { return "" }
-
         let tags = Self.menuBarTags(for: shown)
         let single = shown.count == 1
+
         let parts = shown.compactMap { account -> String? in
-            let percent = percent(for: account.id, metric: settings.menuBarMetric)
-            let dot = settings.menuBarBlockedDot
-                ? (percent == nil ? nil : (isBlocked(account.id) ? Self.blockedGlyph : Self.freeGlyph))
-                : nil
-            guard percent != nil || dot != nil else { return nil }
+            let snapshot = snapshot(for: account.id)
+            var fields: [String] = []
 
-            var piece = ""
-            if !single, settings.showPercentInMenuBar { piece += (tags[account.id] ?? "?") + " " }
-            if let dot { piece += dot }
-            if settings.showPercentInMenuBar, let percent {
-                if !piece.isEmpty && !piece.hasSuffix(" ") { piece += " " }
-                piece += "\(percent)%"
+            if settings.menuBarBlockedDot, snapshot != nil {
+                fields.append(isBlocked(account.id) ? Self.blockedGlyph : Self.freeGlyph)
             }
-            return piece.isEmpty ? nil : piece
-        }
-        if !parts.isEmpty { return parts.joined(separator: " · ") }
+            if settings.showPercentInMenuBar, let percent = percent(for: account.id, metric: settings.menuBarMetric) {
+                fields.append("\(percent)%")
+            }
+            // Per-model window kept separate on purpose: a maxed-out model is not a block, so it
+            // must never masquerade as the account's headline number.
+            if settings.menuBarShowModelScoped, let model = snapshot?.modelScoped,
+               settings.menuBarMetric != .modelScoped {
+                let initial = model.modelName?.first.map { String($0).uppercased() } ?? "M"
+                fields.append("\(initial) \(model.percent)%")
+            }
+            if settings.menuBarShowSpend, let spend = snapshot?.spend, spend.enabled, spend.usedMinor > 0 {
+                fields.append(spend.usedCompactFormatted)
+            }
+            guard !fields.isEmpty else { return nil }
 
-        guard settings.showPercentInMenuBar, let worst else { return "" }
-        return "\(worst.percent)%"
+            let prefix = single ? "" : (tags[account.id] ?? "?") + " "
+            return prefix + fields.joined(separator: " ")
+        }
+        return parts.joined(separator: " · ")
     }
 
     // MARK: - Off-main fetch (nonisolated: runs inside TaskGroup child tasks)

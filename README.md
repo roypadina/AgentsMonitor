@@ -34,10 +34,11 @@ in Claude Code itself:
   each bar (where an even burn rate would put you right now), and a "resets in 2h 14m" countdown
 - Menu-bar label, fully configurable (Settings → General + the per-account **Menu bar**
   checkbox): pick **which accounts** appear, **which value** each one shows (worst limit,
-  session, weekly, or per-model weekly), and an optional **blocked indicator** — 🟢/🔴 per
-  account when a session or weekly limit is exhausted. Per-model limits are deliberately
-  ignored there: with one model maxed you can still work on another. Example:
-  `c 🟢 100% · c2 🔴 28%`
+  session, weekly, or per-model weekly), plus optional extras per account: the **per-model
+  window** shown separately (`F 100%`), the **extra usage spent** (`$739`), and a **blocked
+  indicator** — 🟢/🔴 when a session or weekly limit is exhausted. Per-model windows never
+  count as blocking or as the headline number: with one model maxed you can still work on
+  another. Example: `c 🟢 86% F 100% $739 · c2 🟢 22%`
 
 ## Accounts
 
@@ -137,7 +138,7 @@ prompt.
 ## Build & test
 
 ```bash
-swift test --package-path ClaudeMonitorKit          # 33 unit tests (parsing, derivation, alert engine, credentials, settings, menu bar)
+swift test --package-path ClaudeMonitorKit          # 36 unit tests (parsing, derivation, alert engine, credentials, settings, menu bar)
 xcodebuild -workspace ClaudeMonitor.xcworkspace -scheme ClaudeMonitor \
   -configuration Release -derivedDataPath build build
 cp -R build/Build/Products/Release/ClaudeMonitor.app /Applications/

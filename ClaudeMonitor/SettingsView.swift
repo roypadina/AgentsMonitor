@@ -311,6 +311,9 @@ private struct GeneralTab: View {
                     }
                 }
                 .disabled(!store.settings.showPercentInMenuBar)
+                Toggle("Also show per-model window", isOn: bindingBool(\.menuBarShowModelScoped))
+                    .disabled(store.settings.menuBarMetric == .modelScoped)
+                Toggle("Also show extra usage spent", isOn: bindingBool(\.menuBarShowSpend))
                 VStack(alignment: .leading, spacing: 2) {
                     Toggle("Blocked indicator", isOn: bindingBool(\.menuBarBlockedDot))
                     Text("\(AppStore.freeGlyph) / \(AppStore.blockedGlyph) per account when a session or weekly limit is exhausted. Per-model limits are ignored — you can still work on another model.")

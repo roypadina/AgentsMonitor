@@ -366,11 +366,12 @@ final class SettingsCodableTests: XCTestCase {
 @MainActor
 final class MenuBarTextTests: XCTestCase {
     /// percents: [session, weekly_all, weekly_scoped] per account; nil account = no snapshot.
-    private func store(names: [String], limits: [[Int]?]) -> AppStore {
+    private func store(names: [String], limits: [[Int]?], spendMinor: [Int?]? = nil) -> AppStore {
         let store = AppStore()
         store.settings.menuBarBlockedDot = false      // opt in per test
         store.accounts = names.map { Account(name: $0, kind: .local(configDirPath: "/tmp/\($0)")) }
-        for (account, percents) in zip(store.accounts, limits) {
+        for (index, pair) in zip(store.accounts, limits).enumerated() {
+            let (account, percents) = pair
             guard let percents else { store.states[account.id] = .notLoggedIn; continue }
             let kinds = ["session", "weekly_all", "weekly_scoped"]
             let infos = zip(kinds, percents).map { kind, percent in
@@ -378,18 +379,44 @@ final class MenuBarTextTests: XCTestCase {
                           resetsAt: nil, modelDisplayName: kind == "weekly_scoped" ? "Fable" : nil,
                           isActive: true)
             }
-            store.states[account.id] = .ok(UsageSnapshot(limits: infos, spend: nil))
+            let spend = (spendMinor?[index]).map {
+                SpendInfo(usedMinor: $0, limitMinor: 80_000, exponent: 2, currency: "USD",
+                          percent: $0 * 100 / 80_000, severity: .normal, enabled: true)
+            }
+            store.states[account.id] = .ok(UsageSnapshot(limits: infos, spend: spend))
         }
         return store
     }
 
-    func testPerAccountShowsEveryAccountWithTags() {
+    func testDefaultMetricIsMaxOfSessionAndWeeklyIgnoringPerModel() {
         let s = store(names: ["claude", "claude2"], limits: [[37, 85, 100], [10, 28, 12]])
-        XCTAssertEqual(s.menuBarText, "c 100% · c2 28%", "defaults to the worst limit per account")
+        // claude's Fable window is at 100% but that does not block work -> headline is weekly 85%.
+        XCTAssertEqual(s.menuBarText, "c 85% · c2 28%")
+    }
+
+    func testPerModelShownSeparatelyWhenEnabled() {
+        let s = store(names: ["claude"], limits: [[37, 85, 100]])
+        s.settings.menuBarShowModelScoped = true
+        XCTAssertEqual(s.menuBarText, "85% F 100%")
+    }
+
+    func testPerModelNotDuplicatedWhenItIsAlreadyTheMetric() {
+        let s = store(names: ["claude"], limits: [[37, 85, 100]])
+        s.settings.menuBarMetric = .modelScoped
+        s.settings.menuBarShowModelScoped = true
+        XCTAssertEqual(s.menuBarText, "100%")
+    }
+
+    func testExtraUsageAppendedWhenEnabled() {
+        let s = store(names: ["claude", "claude2"], limits: [[37, 85, 100], [10, 28, 12]],
+                      spendMinor: [73_859, 0])
+        s.settings.menuBarShowSpend = true
+        // Zero spend adds nothing — an account that has not paid shows no money.
+        XCTAssertEqual(s.menuBarText, "c 85% $739 · c2 28%")
     }
 
     func testSingleAccountOmitsTag() {
-        let s = store(names: ["claude"], limits: [[37, 85, 96]])
+        let s = store(names: ["claude"], limits: [[37, 96, 12]])
         XCTAssertEqual(s.menuBarText, "96%")
     }
 
@@ -401,6 +428,8 @@ final class MenuBarTextTests: XCTestCase {
         XCTAssertEqual(s.menuBarText, "c 85% · c2 28%")
         s.settings.menuBarMetric = .modelScoped
         XCTAssertEqual(s.menuBarText, "c 100% · c2 12%")
+        s.settings.menuBarMetric = .worst
+        XCTAssertEqual(s.menuBarText, "c 85% · c2 28%")
     }
 
     func testOnlyCheckedAccountsAppear() {
@@ -413,14 +442,15 @@ final class MenuBarTextTests: XCTestCase {
         let s = store(names: ["claude", "claude2"], limits: [[37, 85, 100], [100, 28, 12]])
         s.settings.menuBarBlockedDot = true
         // claude: only the per-model window is exhausted -> not blocked. claude2: session at 100 -> blocked.
-        XCTAssertEqual(s.menuBarText, "c \(AppStore.freeGlyph) 100% · c2 \(AppStore.blockedGlyph) 100%")
+        XCTAssertEqual(s.menuBarText, "c \(AppStore.freeGlyph) 85% · c2 \(AppStore.blockedGlyph) 100%")
     }
 
     func testDotOnlyModeWhenPercentHidden() {
         let s = store(names: ["claude", "claude2"], limits: [[37, 85, 100], [100, 28, 12]])
         s.settings.menuBarBlockedDot = true
         s.settings.showPercentInMenuBar = false
-        XCTAssertEqual(s.menuBarText, "\(AppStore.freeGlyph) · \(AppStore.blockedGlyph)")
+        // Tags stay in dot-only mode — otherwise you see that something is blocked but not which.
+        XCTAssertEqual(s.menuBarText, "c \(AppStore.freeGlyph) · c2 \(AppStore.blockedGlyph)")
     }
 
     func testAccountsWithoutDataAreSkippedNotBlank() {
@@ -433,7 +463,7 @@ final class MenuBarTextTests: XCTestCase {
     func testHiddenWhenEverythingDisabled() {
         let s = store(names: ["claude"], limits: [[37, 85, 96]])
         s.settings.showPercentInMenuBar = false
-        XCTAssertEqual(s.menuBarText, "")
+        XCTAssertEqual(s.menuBarText, "", "dot already off in this fixture -> nothing to draw")
     }
 
     func testCollidingTagsFallBackToNumbering() {
