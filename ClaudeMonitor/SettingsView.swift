@@ -151,6 +151,10 @@ private struct AccountsTab: View {
         panel.allowsMultipleSelection = false
         panel.directoryURL = URL(fileURLWithPath: NSHomeDirectory())
         panel.prompt = "Add"
+        // Config dirs are dot-directories (~/.claude, ~/.claude3): without this the
+        // panel hides them and there is nothing to select.
+        panel.showsHiddenFiles = true
+        panel.canCreateDirectories = false
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
         let path = url.path

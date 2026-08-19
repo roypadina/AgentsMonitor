@@ -365,7 +365,16 @@ public final class AppStore {
 
         var candidateDirs = ["\(home)/.claude"]
         if let entries = try? FileManager.default.contentsOfDirectory(atPath: home) {
-            candidateDirs += entries.filter { $0.hasPrefix(".claude-") }.map { "\(home)/\($0)" }
+            // Any `~/.claude*` directory is a candidate profile — the dash form
+            // (`.claude-work2`) and the short form (`.claude3`) alike. Files such as
+            // `.claude.json` share the prefix, so directories only.
+            candidateDirs += entries
+                .filter { $0.hasPrefix(".claude") && $0 != ".claude" }
+                .map { "\(home)/\($0)" }
+                .filter { dir in
+                    var isDir: ObjCBool = false
+                    return FileManager.default.fileExists(atPath: dir, isDirectory: &isDir) && isDir.boolValue
+                }
         }
 
         return candidateDirs.compactMap { dir in

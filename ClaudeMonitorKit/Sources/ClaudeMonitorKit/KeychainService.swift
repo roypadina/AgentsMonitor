@@ -60,7 +60,8 @@ public enum KeychainService {
 
         var candidates = ["\(home)/.claude"]
         if let entries = try? fm.contentsOfDirectory(atPath: home) {
-            for name in entries where name.hasPrefix(".claude-") {
+            // `.claude-work2` and `.claude3` alike; `.claude` is already in the list.
+            for name in entries where name.hasPrefix(".claude") && name != ".claude" {
                 candidates.append("\(home)/\(name)")
             }
         }
