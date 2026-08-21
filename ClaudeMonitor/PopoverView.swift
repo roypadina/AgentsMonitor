@@ -119,7 +119,7 @@ private struct AccountCard: View {
 
         case .stale(let snapshot, let error):
             snapshotRows(snapshot)
-            Text("Last refresh failed: \(error)")
+            Text(error)
                 .font(.caption2).foregroundStyle(.orange)
 
         case .notLoggedIn:
@@ -140,7 +140,8 @@ private struct AccountCard: View {
             }
 
         case .rateLimited(let until):
-            statusLine("Rate limited until \(until.formatted(date: .omitted, time: .shortened))",
+            // Not the plan quota — this is the usage endpoint throttling our polling.
+            statusLine("Usage API throttled — retrying \(until.formatted(date: .omitted, time: .shortened))",
                        systemImage: "hourglass", color: .orange)
 
         case .failed(let message):

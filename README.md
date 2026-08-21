@@ -139,7 +139,7 @@ prompt.
 ## Build & test
 
 ```bash
-swift test --package-path ClaudeMonitorKit          # 37 unit tests (parsing, derivation, alert engine, credentials, settings, menu bar)
+swift test --package-path ClaudeMonitorKit          # 39 unit tests (parsing, derivation, alert engine, credentials, settings, menu bar)
 xcodebuild -workspace ClaudeMonitor.xcworkspace -scheme ClaudeMonitor \
   -configuration Release -derivedDataPath build build
 cp -R build/Build/Products/Release/ClaudeMonitor.app /Applications/

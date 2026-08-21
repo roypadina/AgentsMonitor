@@ -3,7 +3,7 @@ import Observation
 import os
 
 public struct Settings: Codable, Equatable, Sendable {
-    public var pollSeconds: Int = 180          // clamp 30...600 (enforced in the Settings UI)
+    public var pollSeconds: Int = 300          // clamp 30...600 (enforced in the Settings UI)
     public var thresholds = AlertThresholds()
     public var ntfyServer: String = "https://ntfy.sh"
     public var ntfyDefaultTopic: String = ""   // user-local only, never committed
@@ -57,6 +57,8 @@ public final class AppStore {
     private var alertEngine = AlertEngine()
     private var backoffState: [UUID: BackoffLadder] = [:]
     private var rateLimitedUntil: [UUID: Date] = [:]
+    /// Last good snapshot per account, kept so a transient failure never blanks the rows.
+    private var lastSnapshot: [UUID: UsageSnapshot] = [:]
     private var pollTask: Task<Void, Never>?
 
     private static let accountsKey = "ClaudeMonitor.accounts"
@@ -107,6 +109,9 @@ public final class AppStore {
     /// Concurrent per-account; keychain read + network fetch happen off-main inside `fetch`.
     public func refresh() async {
         guard !isRefreshing else { return }
+        // Floor between polls: the Refresh button, a wake-up and the poll timer can otherwise
+        // land on top of each other and spend three requests per account for one screenful.
+        if let last = lastRefresh, Date().timeIntervalSince(last) < Self.minRefreshInterval { return }
         isRefreshing = true
         defer { isRefreshing = false; lastRefresh = Date() }
 
@@ -114,7 +119,8 @@ public final class AppStore {
         var toFetch: [Account] = []
         for account in accounts {
             if let until = rateLimitedUntil[account.id], until > now {
-                states[account.id] = .rateLimited(until: until)
+                states[account.id] = Self.preservingSnapshot(.rateLimited(until: until),
+                                                             last: lastSnapshot[account.id])
             } else {
                 toFetch.append(account)
             }
@@ -151,13 +157,16 @@ public final class AppStore {
                 resolvedState = fetchedState
             }
 
+            if case .ok(let snapshot) = resolvedState { lastSnapshot[id] = snapshot }
+            let displayState = Self.preservingSnapshot(resolvedState, last: lastSnapshot[id])
+
             let previous = states[id]
-            states[id] = resolvedState
-            Self.log.debug("\(account.name, privacy: .public): \(Self.describe(resolvedState), privacy: .public)")
-            if let previous, Self.describe(previous) != Self.describe(resolvedState) {
-                Self.log.info("\(account.name, privacy: .public) state: \(Self.describe(previous), privacy: .public) -> \(Self.describe(resolvedState), privacy: .public)")
+            states[id] = displayState
+            Self.log.debug("\(account.name, privacy: .public): \(Self.describe(displayState), privacy: .public)")
+            if let previous, Self.describe(previous) != Self.describe(displayState) {
+                Self.log.info("\(account.name, privacy: .public) state: \(Self.describe(previous), privacy: .public) -> \(Self.describe(displayState), privacy: .public)")
             }
-            let alerts = alertEngine.evaluate(account: account, state: resolvedState)
+            let alerts = alertEngine.evaluate(account: account, state: displayState)
             if !alerts.isEmpty {
                 Self.log.info("firing \(alerts.count) alert(s) for \(account.name, privacy: .public): \(alerts.map(\.key).joined(separator: ","), privacy: .public)")
                 onAlerts?(alerts, account)
@@ -167,6 +176,25 @@ public final class AppStore {
         // Persist the de-dupe memory (cheap: a few hundred bytes once per poll).
         if let snapshot = alertEngine.memorySnapshot {
             UserDefaults.standard.set(snapshot, forKey: Self.alertMemoryKey)
+        }
+    }
+
+    static let minRefreshInterval: TimeInterval = 20
+
+    /// A throttled or failed poll must not blank an account that already has numbers — keep the
+    /// last good snapshot and hang the failure text off it. Auth states are deliberately NOT
+    /// converted: AlertEngine keys its auth alerts off them, and a stale bar would hide the
+    /// one problem the user has to act on.
+    nonisolated static func preservingSnapshot(_ state: AccountState, last: UsageSnapshot?) -> AccountState {
+        guard let last else { return state }
+        switch state {
+        case .rateLimited(let until):
+            let time = until.formatted(date: .omitted, time: .shortened)
+            return .stale(last, error: "usage API throttled — retrying \(time)")
+        case .failed(let message):
+            return .stale(last, error: "last refresh failed: \(message)")
+        default:
+            return state
         }
     }
 
@@ -322,17 +350,24 @@ public final class AppStore {
     // MARK: - Off-main fetch (nonisolated: runs inside TaskGroup child tasks)
 
     nonisolated private static func fetch(account: Account, credentialStore: CredentialStore, usageClient: UsageClient) async -> AccountState {
+        var usedToken: String?
         do {
             do {
                 let token = try await credentialStore.accessToken(for: account)
+                usedToken = token
                 return .ok(try await usageClient.fetch(accessToken: token))
             } catch UsageError.unauthorized {
                 // Claude Code rotates its token mid-poll sometimes (observed live: single 401,
-                // fresh token already in the keychain seconds later). Re-read and retry once
-                // before surfacing anything.
-                fetchLog.info("401 for \(account.name, privacy: .public) — re-reading keychain and retrying once (rotation race)")
+                // fresh token already in the keychain seconds later). Re-read and retry once —
+                // but only when the token really changed: re-firing the same dead token just
+                // buys a 429 on this account's usage-endpoint bucket (observed 2026-08-21).
                 try await Task.sleep(nanoseconds: 2_000_000_000)
                 let token = try await credentialStore.accessToken(for: account)
+                guard token != usedToken else {
+                    fetchLog.info("401 for \(account.name, privacy: .public) — token unchanged, not retrying")
+                    throw UsageError.unauthorized
+                }
+                fetchLog.info("401 for \(account.name, privacy: .public) — token rotated, retrying once")
                 return .ok(try await usageClient.fetch(accessToken: token))
             }
         } catch CredentialError.notFound {

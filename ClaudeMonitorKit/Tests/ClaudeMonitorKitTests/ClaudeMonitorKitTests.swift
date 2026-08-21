@@ -322,6 +322,39 @@ final class CredentialsTests: XCTestCase {
         XCTAssertEqual((oauth["expiresAt"] as? NSNumber)?.int64Value, expectedExpiresAtMs)
     }
 
+    /// A 429 used to replace the state outright, blanking an account that was at 3% and reading
+    /// like a plan limit. The last snapshot must survive as `.stale`.
+    func testThrottleKeepsLastSnapshot() {
+        let snapshot = UsageSnapshot(limits: [LimitInfo(kind: "weekly_all", group: "weekly", percent: 3,
+                                                        severity: .normal, resetsAt: nil,
+                                                        modelDisplayName: nil, isActive: true)],
+                                     spend: nil)
+        let until = Date(timeIntervalSince1970: 1_800_000_000)
+
+        guard case .stale(let kept, let error) = AppStore.preservingSnapshot(.rateLimited(until: until),
+                                                                            last: snapshot) else {
+            return XCTFail("throttle with a known snapshot must render as .stale")
+        }
+        XCTAssertEqual(kept.limits.first?.percent, 3)
+        XCTAssertTrue(error.contains("throttled"), "wording must not read as a plan limit: \(error)")
+
+        guard case .stale(_, let failedError) = AppStore.preservingSnapshot(.failed("boom"), last: snapshot) else {
+            return XCTFail("a failed poll with a known snapshot must render as .stale")
+        }
+        XCTAssertTrue(failedError.contains("boom"))
+    }
+
+    /// Auth states stay bare: AlertEngine keys its auth alerts off them, and stale bars would
+    /// hide the one thing the user must act on.
+    func testAuthStatesAreNotSoftenedToStale() {
+        let snapshot = UsageSnapshot(limits: [], spend: nil)
+        XCTAssertEqual(AppStore.preservingSnapshot(.needsReauth, last: snapshot), .needsReauth)
+        XCTAssertEqual(AppStore.preservingSnapshot(.notLoggedIn, last: snapshot), .notLoggedIn)
+        XCTAssertEqual(AppStore.preservingSnapshot(.rateLimited(until: Date(timeIntervalSince1970: 1)), last: nil),
+                       .rateLimited(until: Date(timeIntervalSince1970: 1)),
+                       "no snapshot yet -> nothing to preserve")
+    }
+
     func testBackoffLadderWalksAndResetsOnSuccess() {
         var ladder = BackoffLadder()
 
