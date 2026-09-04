@@ -16,6 +16,39 @@ public enum Severity: String, Codable, Comparable, Sendable {
     public static func < (lhs: Severity, rhs: Severity) -> Bool { lhs.rank < rhs.rank }
 }
 
+// MARK: - Provider
+
+/// Which agent CLI an account belongs to. Decides where the credentials live and which usage
+/// endpoint answers for it; everything downstream works off the same `UsageSnapshot`.
+public enum Provider: String, Codable, CaseIterable, Hashable, Sendable {
+    case claude, codex
+
+    public var displayName: String {
+        switch self {
+        case .claude: return "Claude"
+        case .codex: return "Codex"
+        }
+    }
+
+    /// Directory prefix its CLI keeps per-profile config in: `~/.claude*`, `~/.codex*`.
+    var configDirPrefix: String {
+        switch self {
+        case .claude: return ".claude"
+        case .codex: return ".codex"
+        }
+    }
+
+    /// What to tell the user when the stored token stops working. Neither provider's token is
+    /// refreshed by this app — the rotation would log its CLI out — so the fix is always to let
+    /// the CLI mint a fresh one.
+    public var reauthHint: String {
+        switch self {
+        case .claude: return "open a Claude Code session for this profile (only /login if that doesn't fix it)"
+        case .codex: return "run codex in this profile (only codex login if that doesn't fix it)"
+        }
+    }
+}
+
 // MARK: - Account
 
 public enum AccountKind: Codable, Hashable, Sendable {
@@ -31,14 +64,16 @@ public struct Account: Codable, Identifiable, Hashable, Sendable {
     public var ntfyEnabled: Bool         // default false
     public var ntfyTopicOverride: String?
     public var showInMenuBar: Bool = true
+    public var provider: Provider = .claude
     // NEVER holds a token. UserDefaults is a plaintext plist.
 
-    public init(id: UUID = UUID(), name: String, kind: AccountKind,
+    public init(id: UUID = UUID(), name: String, kind: AccountKind, provider: Provider = .claude,
                 desktopAlerts: Bool = true, ntfyEnabled: Bool = false,
                 ntfyTopicOverride: String? = nil, showInMenuBar: Bool = true) {
         self.id = id
         self.name = name
         self.kind = kind
+        self.provider = provider
         self.desktopAlerts = desktopAlerts
         self.ntfyEnabled = ntfyEnabled
         self.ntfyTopicOverride = ntfyTopicOverride
@@ -57,6 +92,8 @@ public struct Account: Codable, Identifiable, Hashable, Sendable {
         ntfyEnabled = try c.decodeIfPresent(Bool.self, forKey: .ntfyEnabled) ?? false
         ntfyTopicOverride = try c.decodeIfPresent(String.self, forKey: .ntfyTopicOverride)
         showInMenuBar = try c.decodeIfPresent(Bool.self, forKey: .showInMenuBar) ?? true
+        // Blobs written before Codex support existed have no provider — they are all Claude.
+        provider = try c.decodeIfPresent(Provider.self, forKey: .provider) ?? .claude
     }
 }
 
@@ -88,8 +125,11 @@ public struct LimitInfo: Codable, Hashable, Sendable, Identifiable {
     public var label: String             // "Session" / "Week" / "Week · Fable"
     public var windowLength: TimeInterval // 5h for session, 7d for weekly group
 
+    /// `windowSeconds` overrides the length inferred from `kind` — the Codex payload states its
+    /// window length outright, and pacing must follow the server, not our assumption about it.
     public init(kind: String, group: String?, percent: Int, severity: Severity,
-                resetsAt: Date?, modelDisplayName: String?, isActive: Bool) {
+                resetsAt: Date?, modelDisplayName: String?, isActive: Bool,
+                windowSeconds: TimeInterval? = nil) {
         self.kind = kind
         self.group = group
         self.percent = min(max(percent, 0), 100)
@@ -97,7 +137,9 @@ public struct LimitInfo: Codable, Hashable, Sendable, Identifiable {
         self.resetsAt = resetsAt
         self.modelDisplayName = modelDisplayName
         self.isActive = isActive
-        (self.label, self.windowLength) = LimitInfo.labelAndWindow(kind: kind, modelDisplayName: modelDisplayName)
+        let (label, inferredWindow) = LimitInfo.labelAndWindow(kind: kind, modelDisplayName: modelDisplayName)
+        self.label = label
+        self.windowLength = windowSeconds ?? inferredWindow
     }
 
     private static func labelAndWindow(kind: String, modelDisplayName: String?) -> (String, TimeInterval) {

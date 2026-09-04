@@ -109,7 +109,7 @@ public struct AlertEngine {
         case .needsReauth:
             return authAlert(account: account,
                               title: "Login token expired",
-                              body: "\(account.name)'s token keeps failing — open a Claude Code session for it (only /login if that doesn't fix it).")
+                              body: "\(account.name)'s token keeps failing — \(account.provider.reauthHint).")
 
         case .needsCredentialsRepaste:
             return authAlert(account: account,

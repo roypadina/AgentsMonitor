@@ -54,6 +54,7 @@ public final class AppStore {
 
     private let credentialStore = CredentialStore()
     private let usageClient = UsageClient()
+    private let codexClient = CodexUsageClient()
     private var alertEngine = AlertEngine()
     private var backoffState: [UUID: BackoffLadder] = [:]
     private var rateLimitedUntil: [UUID: Date] = [:]
@@ -64,6 +65,7 @@ public final class AppStore {
     private static let accountsKey = "AgentsMonitor.accounts"
     private static let settingsKey = "AgentsMonitor.settings"
     private static let alertMemoryKey = "AgentsMonitor.alertMemory"
+    private static let scannedProvidersKey = "AgentsMonitor.scannedProviders"
     private static let log = Logger(subsystem: "com.roy.agentsmonitor", category: "poll")
 
     public init() {}
@@ -88,10 +90,42 @@ public final class AppStore {
         } else {
             accounts = Self.discoverLocalAccounts()
         }
+        adoptUnscannedProviders()
         for account in accounts where states[account.id] == nil {
             states[account.id] = .idle
         }
         save()
+    }
+
+    /// Discovery only ever ran on first launch, so an existing install would never notice that
+    /// the app learned about a new provider — Codex accounts would stay invisible until the user
+    /// went looking for an Add button. Each provider is therefore scanned exactly once, and the
+    /// fact that it was scanned is remembered: a provider the user has since deleted every
+    /// account of stays deleted.
+    private func adoptUnscannedProviders() {
+        var scanned = Set(UserDefaults.standard.stringArray(forKey: Self.scannedProvidersKey) ?? [])
+        let unscanned = Provider.allCases.filter { !scanned.contains($0.rawValue) }
+        guard !unscanned.isEmpty else { return }
+
+        // First launch of any build: whatever bootstrap just discovered counts as the scan.
+        let knownDirs = Set(accounts.compactMap { account -> String? in
+            guard case .local(let path) = account.kind else { return nil }
+            return path
+        })
+        for provider in unscanned {
+            let found = Self.discoverLocalAccounts()
+                .filter { $0.provider == provider }
+                .filter { account in
+                    guard case .local(let path) = account.kind else { return true }
+                    return !knownDirs.contains(path)
+                }
+            if !found.isEmpty {
+                accounts.append(contentsOf: found)
+                Self.log.info("adopted \(found.count) \(provider.rawValue, privacy: .public) account(s) on first scan")
+            }
+            scanned.insert(provider.rawValue)
+        }
+        UserDefaults.standard.set(Array(scanned).sorted(), forKey: Self.scannedProvidersKey)
     }
 
     /// The rename to Agents Monitor changed the bundle identifier, and with it the preferences
@@ -152,10 +186,12 @@ public final class AppStore {
 
         let credentialStore = self.credentialStore
         let usageClient = self.usageClient
+        let codexClient = self.codexClient
         let results = await withTaskGroup(of: (UUID, AccountState).self) { group in
             for account in toFetch {
                 group.addTask {
-                    (account.id, await Self.fetch(account: account, credentialStore: credentialStore, usageClient: usageClient))
+                    (account.id, await Self.fetch(account: account, credentialStore: credentialStore,
+                                                  usageClient: usageClient, codexClient: codexClient))
                 }
             }
             var collected: [(UUID, AccountState)] = []
@@ -297,15 +333,16 @@ public final class AppStore {
         }
     }
 
-    /// Short per-account labels for the menu bar: first letter plus any digits in the name
-    /// ("claude" -> "c", "claude2" -> "c2"). Falls back to 1-based numbering if that collides.
+    /// Short per-account labels for the menu bar: a provider letter plus any digits in the name
+    /// ("claude" -> "c", "claude2" -> "c2", a Codex account -> "x"). The letter comes from the
+    /// provider rather than the name because Codex names default to an email address, whose
+    /// first letter says nothing. Falls back to 1-based numbering if the tags collide.
     public static func menuBarTags(for accounts: [Account]) -> [UUID: String] {
-        func tag(_ name: String) -> String {
-            let lower = name.lowercased()
-            let first = lower.first(where: { $0.isLetter || $0.isNumber }).map(String.init) ?? "?"
-            return first + lower.filter(\.isNumber)
+        func tag(_ account: Account) -> String {
+            let letter = account.provider == .codex ? "x" : "c"
+            return letter + account.name.filter(\.isNumber)
         }
-        var tags = accounts.reduce(into: [UUID: String]()) { $0[$1.id] = tag($1.name) }
+        var tags = accounts.reduce(into: [UUID: String]()) { $0[$1.id] = tag($1) }
         if Set(tags.values).count != accounts.count {
             for (index, account) in accounts.enumerated() { tags[account.id] = String(index + 1) }
         }
@@ -373,16 +410,32 @@ public final class AppStore {
 
     // MARK: - Off-main fetch (nonisolated: runs inside TaskGroup child tasks)
 
-    nonisolated private static func fetch(account: Account, credentialStore: CredentialStore, usageClient: UsageClient) async -> AccountState {
+    nonisolated private static func fetch(account: Account, credentialStore: CredentialStore,
+                                          usageClient: UsageClient,
+                                          codexClient: CodexUsageClient) async -> AccountState {
+        // Both providers answer with the same `UsageSnapshot`, so only the call differs.
+        let fetchUsage: (String) async throws -> UsageSnapshot = { token in
+            switch account.provider {
+            case .claude:
+                return try await usageClient.fetch(accessToken: token)
+            case .codex:
+                guard case .local(let configDirPath) = account.kind else {
+                    throw CredentialError.notFound
+                }
+                return try await codexClient.fetch(accessToken: token,
+                                                   accountId: CodexAuthFile.accountId(configDir: configDirPath))
+            }
+        }
         var usedToken: String?
         do {
             do {
                 let token = try await credentialStore.accessToken(for: account)
                 usedToken = token
-                return .ok(try await usageClient.fetch(accessToken: token))
+                return .ok(try await fetchUsage(token))
             } catch UsageError.unauthorized {
                 // Claude Code rotates its token mid-poll sometimes (observed live: single 401,
-                // fresh token already in the keychain seconds later). Re-read and retry once —
+                // fresh token already in the keychain seconds later); Codex rewrites auth.json
+                // on the same kind of schedule. Re-read and retry once —
                 // but only when the token really changed: re-firing the same dead token just
                 // buys a 429 on this account's usage-endpoint bucket (observed 2026-08-21).
                 try await Task.sleep(nanoseconds: 2_000_000_000)
@@ -392,7 +445,7 @@ public final class AppStore {
                     throw UsageError.unauthorized
                 }
                 fetchLog.info("401 for \(account.name, privacy: .public) — token rotated, retrying once")
-                return .ok(try await usageClient.fetch(accessToken: token))
+                return .ok(try await fetchUsage(token))
             }
         } catch CredentialError.notFound {
             return .notLoggedIn
@@ -414,29 +467,55 @@ public final class AppStore {
 
     // MARK: - First-run discovery
 
+    /// Every provider profile on this Mac, Claude first.
+    static func discoverLocalAccounts() -> [Account] {
+        discoverClaudeAccounts() + discoverCodexAccounts()
+    }
+
+    /// Config-dir candidates for a provider: `~/.claude`, `~/.claude-work2`, `~/.claude3`,
+    /// `~/.codex`, ... Directories only — files such as `.claude.json` share the prefix.
+    static func profileDirs(for provider: Provider, home: String = NSHomeDirectory()) -> [String] {
+        let prefix = provider.configDirPrefix
+        var dirs = ["\(home)/\(prefix)"]
+        if let entries = try? FileManager.default.contentsOfDirectory(atPath: home) {
+            dirs += entries
+                .filter { $0.hasPrefix(prefix) && $0 != prefix }
+                .sorted()
+                .map { "\(home)/\($0)" }
+        }
+        return dirs.filter { dir in
+            var isDir: ObjCBool = false
+            return FileManager.default.fileExists(atPath: dir, isDirectory: &isDir) && isDir.boolValue
+        }
+    }
+
+    /// A `~/.codex*` directory counts as an account once it holds an `auth.json` we can read a
+    /// ChatGPT token out of — an api-key-only login has no usage to report. Named by the signed-in
+    /// address from the token claims, falling back to the directory basename.
+    private static func discoverCodexAccounts(home: String = NSHomeDirectory()) -> [Account] {
+        profileDirs(for: .codex, home: home).compactMap(codexAccount(configDir:))
+    }
+
+    /// nil when the directory holds no readable ChatGPT login — also what the Settings
+    /// "Add Codex Account…" panel uses to reject a wrong folder before adding it.
+    public static func codexAccount(configDir: String) -> Account? {
+        guard CodexAuthFile.exists(configDir: configDir),
+              (try? CodexAuthFile.accessToken(configDir: configDir)) != nil else { return nil }
+        var fallback = (configDir as NSString).lastPathComponent
+        if fallback.hasPrefix(".") { fallback.removeFirst() }
+        return Account(name: CodexAuthFile.email(configDir: configDir) ?? fallback,
+                       kind: .local(configDirPath: configDir), provider: .codex)
+    }
+
     /// Always adds `~/.claude` if a keychain entry exists; globs `~/.claude-*` dirs and adds
     /// those with keychain entries too. Names come from `.claude.json`; unlabeled falls back
     /// to the directory basename — never dropped.
-    private static func discoverLocalAccounts() -> [Account] {
+    private static func discoverClaudeAccounts() -> [Account] {
         let home = NSHomeDirectory()
         let existingServices = Set(KeychainService.discoverClaudeServices())
         let labels = KeychainService.discoverLabels(home: home)
 
-        var candidateDirs = ["\(home)/.claude"]
-        if let entries = try? FileManager.default.contentsOfDirectory(atPath: home) {
-            // Any `~/.claude*` directory is a candidate profile — the dash form
-            // (`.claude-work2`) and the short form (`.claude3`) alike. Files such as
-            // `.claude.json` share the prefix, so directories only.
-            candidateDirs += entries
-                .filter { $0.hasPrefix(".claude") && $0 != ".claude" }
-                .map { "\(home)/\($0)" }
-                .filter { dir in
-                    var isDir: ObjCBool = false
-                    return FileManager.default.fileExists(atPath: dir, isDirectory: &isDir) && isDir.boolValue
-                }
-        }
-
-        return candidateDirs.compactMap { dir in
+        return profileDirs(for: .claude, home: home).compactMap { dir in
             let service = KeychainService.serviceName(forConfigDir: dir, home: home)
             guard existingServices.contains(service) else { return nil }
             var fallback = (dir as NSString).lastPathComponent

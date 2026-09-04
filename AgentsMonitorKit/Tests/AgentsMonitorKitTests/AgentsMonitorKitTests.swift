@@ -519,6 +519,20 @@ final class MenuBarTextTests: XCTestCase {
         XCTAssertEqual(tags[accounts[0].id], "1")
         XCTAssertEqual(tags[accounts[1].id], "2")
     }
+
+    /// A Codex account is named after an email address, so the tag letter has to come from the
+    /// provider — otherwise "royp@…" reads as "r" next to Claude's "c".
+    func testCodexAccountsTagWithX() {
+        let accounts = [
+            Account(name: "claude", kind: .local(configDirPath: "/tmp/.claude")),
+            Account(name: "claude2", kind: .local(configDirPath: "/tmp/.claude-work2")),
+            Account(name: "someone@example.com", kind: .local(configDirPath: "/tmp/.codex"), provider: .codex),
+        ]
+        let tags = AppStore.menuBarTags(for: accounts)
+        XCTAssertEqual(tags[accounts[0].id], "c")
+        XCTAssertEqual(tags[accounts[1].id], "c2")
+        XCTAssertEqual(tags[accounts[2].id], "x")
+    }
 }
 
 // MARK: - 8. Account forward-compatibility
@@ -591,5 +605,199 @@ final class LegacyDefaultsMigrationTests: XCTestCase {
         let (new, _) = freshDomains()
         AppStore.migrateLegacyDefaults(into: new, legacy: nil)
         XCTAssertNil(new.data(forKey: "AgentsMonitor.accounts"))
+    }
+}
+
+// MARK: - 10. Codex
+
+/// Before the fixture's `reset_at` timestamps (2026-09-04 / 2026-09-06), so nothing gets nulled.
+private let codexFetchedAt = Date(timeIntervalSince1970: 1_788_500_000)
+
+final class CodexParsingTests: XCTestCase {
+    /// The two Codex windows must land on the same `kind` values the rest of the app keys off,
+    /// or the menu-bar metrics, the blocked dot and pacing all silently skip Codex accounts.
+    func testTeamFixtureMapsOntoSessionAndWeekly() throws {
+        let data = try loadFixtureData("codex_usage_team")
+        let snapshot = try UsageSnapshot.decodeCodex(data, fetchedAt: codexFetchedAt)
+
+        XCTAssertEqual(snapshot.limits.count, 2, "code_review_rate_limit is null here")
+        XCTAssertEqual(snapshot.limits[0].kind, "session")
+        XCTAssertEqual(snapshot.limits[0].percent, 40)
+        XCTAssertEqual(snapshot.limits[0].label, "Session")
+        XCTAssertEqual(snapshot.limits[0].windowLength, 18000)
+        XCTAssertEqual(snapshot.limits[0].severity, .normal)
+
+        XCTAssertEqual(snapshot.limits[1].kind, "weekly_all")
+        XCTAssertEqual(snapshot.limits[1].percent, 96)
+        XCTAssertEqual(snapshot.limits[1].label, "Week")
+        XCTAssertEqual(snapshot.limits[1].windowLength, 604800)
+        XCTAssertEqual(snapshot.limits[1].severity, .critical, "graded locally: OpenAI sends no severity")
+
+        XCTAssertEqual(snapshot.limits[1].resetsAt, Date(timeIntervalSince1970: 1_788_774_876))
+        XCTAssertNil(snapshot.spend, "credits/spend_control are a remaining balance, not an amount spent")
+        XCTAssertEqual(snapshot.worstPercent, 96)
+        XCTAssertEqual(snapshot.blockingPercent, 96, "both Codex windows can actually stop you")
+    }
+
+    func testCountdownUsedWhenNoAbsoluteReset() throws {
+        let data = Data("""
+        {"rate_limit":{"primary_window":{"used_percent":80,"limit_window_seconds":18000,"reset_after_seconds":600}}}
+        """.utf8)
+        let snapshot = try UsageSnapshot.decodeCodex(data, fetchedAt: codexFetchedAt)
+
+        XCTAssertEqual(snapshot.limits.count, 1)
+        XCTAssertEqual(snapshot.limits[0].severity, .warning)
+        XCTAssertEqual(snapshot.limits[0].resetsAt, codexFetchedAt.addingTimeInterval(600))
+    }
+
+    /// A window whose reset time has already passed is stale — the Claude path nulls it, and the
+    /// pacing tick would otherwise be computed from a window that no longer exists.
+    func testPastResetIsNulled() throws {
+        let data = Data("""
+        {"rate_limit":{"primary_window":{"used_percent":10,"limit_window_seconds":18000,"reset_at":1000}}}
+        """.utf8)
+        let snapshot = try UsageSnapshot.decodeCodex(data, fetchedAt: codexFetchedAt)
+        XCTAssertNil(snapshot.limits[0].resetsAt)
+    }
+
+    func testEmptyPayloadYieldsNoLimits() throws {
+        let snapshot = try UsageSnapshot.decodeCodex(Data("{}".utf8), fetchedAt: codexFetchedAt)
+        XCTAssertTrue(snapshot.limits.isEmpty)
+        XCTAssertEqual(snapshot.worstPercent, 0)
+    }
+
+    func testCodeReviewWindowDecodesWhenPresent() throws {
+        let data = Data("""
+        {"rate_limit":{},"code_review_rate_limit":{"used_percent":5,"limit_window_seconds":3600,"reset_at":1788774876}}
+        """.utf8)
+        let snapshot = try UsageSnapshot.decodeCodex(data, fetchedAt: codexFetchedAt)
+        XCTAssertEqual(snapshot.limits.map(\.kind), ["code_review"])
+        XCTAssertEqual(snapshot.limits[0].windowLength, 3600)
+        XCTAssertNil(snapshot.blockingPercent, "a code-review cap is not a session or weekly block")
+    }
+
+    func testInvalidPayloadThrows() {
+        XCTAssertThrowsError(try UsageSnapshot.decodeCodex(Data("[]".utf8)))
+    }
+}
+
+final class CodexAuthFileTests: XCTestCase {
+    private var dir: String!
+
+    override func setUpWithError() throws {
+        dir = NSTemporaryDirectory() + "codex-auth-\(UUID().uuidString)"
+        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+    }
+
+    override func tearDownWithError() throws {
+        try? FileManager.default.removeItem(atPath: dir)
+    }
+
+    private func write(_ json: String) throws {
+        try Data(json.utf8).write(to: URL(fileURLWithPath: CodexAuthFile.path(configDir: dir)))
+    }
+
+    /// Payload shaped like a real `~/.codex/auth.json`, with an `id_token` carrying the claims
+    /// the account label is read from.
+    private func authJSON(email: String) -> String {
+        let claims = Data(#"{"email":"\#(email)","name":"Someone"}"#.utf8)
+            .base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+        return """
+        {"auth_mode":"chatgpt","OPENAI_API_KEY":null,
+         "tokens":{"id_token":"header.\(claims).signature","access_token":"at-123",
+                   "refresh_token":"rt-123","account_id":"acct-1"},
+         "last_refresh":"2026-09-03T15:03:40.463592Z"}
+        """
+    }
+
+    func testReadsTokenAccountIdAndEmail() throws {
+        try write(authJSON(email: "someone@example.com"))
+        XCTAssertEqual(try CodexAuthFile.accessToken(configDir: dir), "at-123")
+        XCTAssertEqual(CodexAuthFile.accountId(configDir: dir), "acct-1")
+        XCTAssertEqual(CodexAuthFile.email(configDir: dir), "someone@example.com")
+    }
+
+    func testMissingFileIsNotFound() {
+        XCTAssertFalse(CodexAuthFile.exists(configDir: dir))
+        XCTAssertThrowsError(try CodexAuthFile.accessToken(configDir: dir)) { error in
+            XCTAssertEqual(error as? CredentialError, .notFound)
+        }
+    }
+
+    /// An api-key login has no `tokens` block and no ChatGPT usage behind it — it must read as
+    /// "not logged in" rather than as a broken account.
+    func testApiKeyOnlyLoginIsNotFound() throws {
+        try write(#"{"auth_mode":"apikey","OPENAI_API_KEY":"sk-test"}"#)
+        XCTAssertThrowsError(try CodexAuthFile.accessToken(configDir: dir)) { error in
+            XCTAssertEqual(error as? CredentialError, .notFound)
+        }
+    }
+
+    func testTokensWithoutAccessTokenIsBadPayload() throws {
+        try write(#"{"auth_mode":"chatgpt","tokens":{"refresh_token":"rt-1"}}"#)
+        XCTAssertThrowsError(try CodexAuthFile.accessToken(configDir: dir)) { error in
+            XCTAssertEqual(error as? CredentialError, .badPayload)
+        }
+    }
+
+    func testUnparseableFileIsBadPayload() throws {
+        try write("not json")
+        XCTAssertThrowsError(try CodexAuthFile.accessToken(configDir: dir)) { error in
+            XCTAssertEqual(error as? CredentialError, .badPayload)
+        }
+    }
+
+    func testGarbageJWTYieldsNoEmail() throws {
+        try write(#"{"tokens":{"access_token":"at","id_token":"nonsense"}}"#)
+        XCTAssertNil(CodexAuthFile.email(configDir: dir))
+    }
+}
+
+@MainActor
+final class ProviderDiscoveryTests: XCTestCase {
+    /// `~/.codex` first, then any other `~/.codex*` profile dir; files sharing the prefix and
+    /// non-existent dirs are excluded.
+    func testProfileDirsGlobsPrefixedDirectoriesOnly() throws {
+        let home = NSTemporaryDirectory() + "home-\(UUID().uuidString)"
+        let fm = FileManager.default
+        for name in [".codex", ".codex-work", ".claude"] {
+            try fm.createDirectory(atPath: "\(home)/\(name)", withIntermediateDirectories: true)
+        }
+        try Data("{}".utf8).write(to: URL(fileURLWithPath: "\(home)/.codex.json"))
+        defer { try? fm.removeItem(atPath: home) }
+
+        let dirs = AppStore.profileDirs(for: .codex, home: home)
+        XCTAssertEqual(dirs, ["\(home)/.codex", "\(home)/.codex-work"])
+        XCTAssertEqual(AppStore.profileDirs(for: .claude, home: home), ["\(home)/.claude"])
+    }
+
+    func testCodexAccountRejectsDirWithoutLogin() throws {
+        let dir = NSTemporaryDirectory() + "empty-\(UUID().uuidString)"
+        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(atPath: dir) }
+        XCTAssertNil(AppStore.codexAccount(configDir: dir))
+    }
+}
+
+// MARK: - 11. Account provider forward-compatibility
+
+final class AccountProviderTests: XCTestCase {
+    /// Accounts saved before Codex support existed carry no provider — they are all Claude, and
+    /// defaulting them wrong would point the Claude poller at the wrong endpoint.
+    func testBlobWithoutProviderDecodesAsClaude() throws {
+        let old = """
+        [{"id":"F9C7F579-8D7E-4636-9066-89392CFB45DC","name":"claude",
+          "kind":{"local":{"configDirPath":"/Users/x/.claude"}},"desktopAlerts":true,"ntfyEnabled":true}]
+        """.data(using: .utf8)!
+        XCTAssertEqual(try JSONDecoder().decode([Account].self, from: old)[0].provider, .claude)
+    }
+
+    func testProviderRoundTrips() throws {
+        let account = Account(name: "codex", kind: .local(configDirPath: "/Users/x/.codex"), provider: .codex)
+        let decoded = try JSONDecoder().decode([Account].self, from: JSONEncoder().encode([account]))
+        XCTAssertEqual(decoded[0].provider, .codex)
     }
 }

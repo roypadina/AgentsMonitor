@@ -39,6 +39,14 @@ public actor CredentialStore {
     }
 
     public func accessToken(for account: Account) async throws -> String {
+        if account.provider == .codex {
+            guard case .local(let configDirPath) = account.kind else {
+                // Remote (pasted-credentials) accounts are a Claude-only path — the Codex token
+                // lives in a file we read directly, so there is nothing to paste.
+                throw CredentialError.notFound
+            }
+            return try CodexAuthFile.accessToken(configDir: configDirPath)
+        }
         switch account.kind {
         case .local(let configDirPath):
             if let until = negativeCacheUntil[account.id], until > Date() {

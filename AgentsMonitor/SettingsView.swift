@@ -38,7 +38,8 @@ private struct AccountsTab: View {
             .listStyle(.inset)
 
             HStack {
-                Button("Add Local Account…") { addLocalAccount() }
+                Button("Add Claude Account…") { addClaudeAccount() }
+                Button("Add Codex Account…") { addCodexAccount() }
                 Button("Add Remote Account…") { showAddRemote = true }
                 Spacer()
             }
@@ -66,6 +67,11 @@ private struct AccountsTab: View {
                     Button("Save") { commitRename(account) }.controlSize(.small)
                 } else {
                     Text(account.name)
+                    Text(account.provider.displayName)
+                        .font(.caption2)
+                        .padding(.horizontal, 5).padding(.vertical, 1)
+                        .background(Color.secondary.opacity(0.15), in: Capsule())
+                        .foregroundStyle(.secondary)
                     Text(isLocal(account) ? "Local" : "Remote")
                         .font(.caption2).foregroundStyle(.secondary)
                     Button("Rename") { beginRename(account) }
@@ -144,19 +150,49 @@ private struct AccountsTab: View {
         store.save()
     }
 
-    private func addLocalAccount() {
+    /// Config dirs are dot-directories (`~/.claude`, `~/.claude3`, `~/.codex`): without
+    /// `showsHiddenFiles` the panel hides them and there is nothing to select.
+    private func pickConfigDir() -> URL? {
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
         panel.allowsMultipleSelection = false
         panel.directoryURL = URL(fileURLWithPath: NSHomeDirectory())
         panel.prompt = "Add"
-        // Config dirs are dot-directories (~/.claude, ~/.claude3): without this the
-        // panel hides them and there is nothing to select.
         panel.showsHiddenFiles = true
         panel.canCreateDirectories = false
-        guard panel.runModal() == .OK, let url = panel.url else { return }
+        guard panel.runModal() == .OK else { return nil }
+        return panel.url
+    }
 
+    private func add(_ account: Account) {
+        store.accounts.append(account)
+        store.states[account.id] = .idle
+        store.save()
+        Task { await store.refresh() }
+    }
+
+    private func addCodexAccount() {
+        guard let url = pickConfigDir() else { return }
+        let path = url.path
+        guard let email = codexAccountName(configDir: path) else {
+            let alert = NSAlert()
+            alert.messageText = "No Codex login found there"
+            alert.informativeText = "That folder has no readable auth.json with a ChatGPT token — pick the directory Codex uses as CODEX_HOME, and run `codex login` in it first. An api-key-only login has no usage to report."
+            alert.runModal()
+            return
+        }
+        add(Account(name: email, kind: .local(configDirPath: path), provider: .codex))
+    }
+
+    /// nil when the directory has no usable Codex login.
+    private func codexAccountName(configDir: String) -> String? {
+        guard let account = AppStore.codexAccount(configDir: configDir) else { return nil }
+        return account.name
+    }
+
+    private func addClaudeAccount() {
+        guard let url = pickConfigDir() else { return }
         let path = url.path
         let service = KeychainService.serviceName(forConfigDir: path)
         guard KeychainService.discoverClaudeServices().contains(service) else {
@@ -169,11 +205,7 @@ private struct AccountsTab: View {
 
         let labels = KeychainService.discoverLabels()
         let name = labels[service]?.email ?? url.lastPathComponent
-        let account = Account(name: name, kind: .local(configDirPath: path))
-        store.accounts.append(account)
-        store.states[account.id] = .idle
-        store.save()
-        Task { await store.refresh() }
+        add(Account(name: name, kind: .local(configDirPath: path)))
     }
 }
 

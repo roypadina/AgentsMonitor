@@ -94,6 +94,11 @@ private struct AccountCard: View {
     private var header: some View {
         HStack(spacing: 6) {
             Text(account.name).font(.headline)
+            Text(account.provider.displayName)
+                .font(.caption2)
+                .padding(.horizontal, 6).padding(.vertical, 2)
+                .background(Color.secondary.opacity(0.15), in: Capsule())
+                .foregroundStyle(.secondary)
             Text(isLocal ? "Local" : "Remote")
                 .font(.caption2)
                 .padding(.horizontal, 6).padding(.vertical, 2)
@@ -129,7 +134,7 @@ private struct AccountCard: View {
             statusLine("Keychain access denied", systemImage: "lock.slash", color: .orange)
 
         case .needsReauth:
-            statusLine("Login token expired — open a Claude Code session for this profile",
+            statusLine("Login token expired — \(account.provider.reauthHint)",
                        systemImage: "exclamationmark.arrow.trianglehead.2.clockwise.rotate.90", color: .red)
 
         case .needsCredentialsRepaste:
