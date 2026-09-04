@@ -801,3 +801,61 @@ final class AccountProviderTests: XCTestCase {
         XCTAssertEqual(decoded[0].provider, .codex)
     }
 }
+
+// MARK: - 12. Provider presentation
+
+#if canImport(AppKit)
+import AppKit
+#endif
+
+final class ProviderPresentationTests: XCTestCase {
+    #if canImport(AppKit)
+    /// A misspelled SF Symbol renders as *nothing* — no crash, no warning, just a blank badge.
+    /// This is the only way that mistake surfaces before someone notices the icon is missing.
+    func testEveryProviderIconExists() {
+        for provider in Provider.allCases {
+            XCTAssertNotNil(NSImage(systemSymbolName: provider.iconSystemName, accessibilityDescription: nil),
+                            "\(provider.rawValue) icon '\(provider.iconSystemName)' is not an SF Symbol on this OS")
+        }
+    }
+    #endif
+
+    /// The badge is there to tell providers apart, so their colors have to be far apart. Compares
+    /// in RGB rather than by eye: adjacent hues would defeat the point of color-coding at all.
+    func testProviderTintsAreDistinct() {
+        let tints = Provider.allCases.map(\.tintRGB)
+        for (i, a) in tints.enumerated() {
+            for b in tints[(i + 1)...] {
+                let distance = ((a.red - b.red) * (a.red - b.red)
+                    + (a.green - b.green) * (a.green - b.green)
+                    + (a.blue - b.blue) * (a.blue - b.blue)).squareRoot()
+                XCTAssertGreaterThan(distance, 0.35, "provider tints are too close to tell apart")
+            }
+        }
+        for tint in tints {
+            for component in [tint.red, tint.green, tint.blue] {
+                XCTAssertTrue((0...1).contains(component), "tint component out of sRGB range")
+            }
+        }
+    }
+
+    func testBadgeStyleParts() {
+        XCTAssertEqual(ProviderBadgeStyle.iconAndName.showsIcon, true)
+        XCTAssertEqual(ProviderBadgeStyle.iconAndName.showsName, true)
+        XCTAssertEqual(ProviderBadgeStyle.icon.showsIcon, true)
+        XCTAssertEqual(ProviderBadgeStyle.icon.showsName, false)
+        XCTAssertEqual(ProviderBadgeStyle.name.showsIcon, false)
+        XCTAssertEqual(ProviderBadgeStyle.name.showsName, true)
+        XCTAssertEqual(ProviderBadgeStyle.hidden.showsIcon, false)
+        XCTAssertEqual(ProviderBadgeStyle.hidden.showsName, false)
+    }
+
+    /// Settings written before the badge existed must default to showing it, not to hidden —
+    /// a silent downgrade to "no badge" would look like the feature never shipped.
+    func testOldSettingsBlobDefaultsToShowingTheBadge() throws {
+        let old = Data(#"{"pollSeconds":300,"toastEnabled":true}"#.utf8)
+        let settings = try JSONDecoder().decode(Settings.self, from: old)
+        XCTAssertEqual(settings.providerBadge, .iconAndName)
+        XCTAssertTrue(settings.providerColors)
+    }
+}

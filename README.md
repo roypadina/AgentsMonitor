@@ -165,7 +165,7 @@ prompt. Codex keeps its credentials in a file instead, so that path needs none o
 ## Build & test
 
 ```bash
-swift test --package-path AgentsMonitorKit          # 59 unit tests (parsing for both providers, derivation, alert engine, credentials, settings, menu bar, defaults migration)
+swift test --package-path AgentsMonitorKit          # 63 unit tests (parsing for both providers, derivation, alert engine, credentials, settings, menu bar, defaults migration)
 xcodebuild -workspace AgentsMonitor.xcworkspace -scheme AgentsMonitor \
   -configuration Release -derivedDataPath build build
 cp -R build/Build/Products/Release/AgentsMonitor.app /Applications/
