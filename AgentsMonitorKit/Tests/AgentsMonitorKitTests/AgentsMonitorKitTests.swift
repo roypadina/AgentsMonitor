@@ -539,3 +539,57 @@ final class AccountCodableTests: XCTestCase {
         XCTAssertTrue(accounts[0].showInMenuBar, "new field defaults to shown")
     }
 }
+
+// MARK: - 9. Legacy defaults migration (rename to Agents Monitor)
+
+@MainActor
+final class LegacyDefaultsMigrationTests: XCTestCase {
+    private let newDomain = "com.roy.agentsmonitor.tests.new"
+    private let oldDomain = "com.roy.agentsmonitor.tests.old"
+
+    private func freshDomains() -> (new: UserDefaults, old: UserDefaults) {
+        let new = UserDefaults(suiteName: newDomain)!
+        let old = UserDefaults(suiteName: oldDomain)!
+        new.removePersistentDomain(forName: newDomain)
+        old.removePersistentDomain(forName: oldDomain)
+        return (new, old)
+    }
+
+    override func tearDown() {
+        UserDefaults.standard.removePersistentDomain(forName: newDomain)
+        UserDefaults.standard.removePersistentDomain(forName: oldDomain)
+        super.tearDown()
+    }
+
+    func testMigratesAccountsSettingsAndAlertMemory() {
+        let (new, old) = freshDomains()
+        old.set(Data("accounts".utf8), forKey: "ClaudeMonitor.accounts")
+        old.set(Data("settings".utf8), forKey: "ClaudeMonitor.settings")
+        old.set(Data("memory".utf8), forKey: "ClaudeMonitor.alertMemory")
+
+        AppStore.migrateLegacyDefaults(into: new, legacy: old)
+
+        XCTAssertEqual(new.data(forKey: "AgentsMonitor.accounts"), Data("accounts".utf8))
+        XCTAssertEqual(new.data(forKey: "AgentsMonitor.settings"), Data("settings".utf8))
+        XCTAssertEqual(new.data(forKey: "AgentsMonitor.alertMemory"), Data("memory".utf8))
+    }
+
+    /// Running twice must not clobber what the app has since written under the new names.
+    func testDoesNotOverwriteExistingDefaults() {
+        let (new, old) = freshDomains()
+        old.set(Data("old".utf8), forKey: "ClaudeMonitor.accounts")
+        old.set(Data("old".utf8), forKey: "ClaudeMonitor.settings")
+        new.set(Data("current".utf8), forKey: "AgentsMonitor.accounts")
+        new.set(Data("current".utf8), forKey: "AgentsMonitor.settings")
+
+        AppStore.migrateLegacyDefaults(into: new, legacy: old)
+
+        XCTAssertEqual(new.data(forKey: "AgentsMonitor.accounts"), Data("current".utf8))
+    }
+
+    func testNoLegacyDomainIsANoOp() {
+        let (new, _) = freshDomains()
+        AppStore.migrateLegacyDefaults(into: new, legacy: nil)
+        XCTAssertNil(new.data(forKey: "AgentsMonitor.accounts"))
+    }
+}

@@ -204,6 +204,13 @@ public enum KeychainService {
         "AgentsMonitor-account-\(accountId.uuidString)"
     }
 
+    /// Item name used by the pre-rename Claude Monitor builds. A remote account's credentials
+    /// cannot be rediscovered — losing them means the user has to paste them again — so the
+    /// read path falls back to this name once and rewrites under the current one.
+    public static func legacyOwnedServiceName(accountId: UUID) -> String {
+        "ClaudeMonitor-account-\(accountId.uuidString)"
+    }
+
     private static func normalizePath(_ path: String) -> String {
         var p = path
         while p.count > 1 && p.hasSuffix("/") { p.removeLast() }

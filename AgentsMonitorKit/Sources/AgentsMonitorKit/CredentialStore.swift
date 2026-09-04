@@ -57,7 +57,17 @@ public actor CredentialStore {
 
         case .remote:
             let service = KeychainService.ownedServiceName(accountId: account.id)
-            let data = try KeychainService.readPayload(service: service)
+            let data: Data
+            do {
+                data = try KeychainService.readPayload(service: service)
+            } catch CredentialError.notFound {
+                // Pre-rename item name. Migrate it across rather than making the user re-paste.
+                let legacy = try KeychainService.readPayload(
+                    service: KeychainService.legacyOwnedServiceName(accountId: account.id))
+                try KeychainService.writeOwnedPayload(legacy, service: service)
+                Self.log.info("migrated remote credentials for \(account.name, privacy: .public) to the new keychain item")
+                data = legacy
+            }
 
             guard let rawExpiresAt = Self.rawExpiresAt(from: data) else {
                 // No expiry info in the payload = assume valid (mirrors ccsync).

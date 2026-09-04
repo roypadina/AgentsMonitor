@@ -70,6 +70,7 @@ public final class AppStore {
 
     /// Loads persisted defaults; on first run (no saved accounts) discovers local ones.
     public func bootstrap() {
+        Self.migrateLegacyDefaults()
         if let data = UserDefaults.standard.data(forKey: Self.settingsKey),
            let decoded = try? JSONDecoder().decode(Settings.self, from: data) {
             settings = decoded
@@ -91,6 +92,29 @@ public final class AppStore {
             states[account.id] = .idle
         }
         save()
+    }
+
+    /// The rename to Agents Monitor changed the bundle identifier, and with it the preferences
+    /// domain — so an upgrade would land on first-run defaults and silently drop the account
+    /// list (including remote accounts, which cannot be rediscovered) and the alert de-dupe
+    /// memory, re-firing every threshold alert already sent. Copies the three keys over once,
+    /// only into a domain that has nothing of its own yet. The app is un-sandboxed, so the old
+    /// domain is readable by name.
+    static func migrateLegacyDefaults(into defaults: UserDefaults = .standard,
+                                      legacy legacyDefaults: UserDefaults? = UserDefaults(suiteName: legacyDefaultsDomain)) {
+        guard defaults.data(forKey: accountsKey) == nil,
+              defaults.data(forKey: settingsKey) == nil,
+              let legacyDefaults else { return }
+        var migrated: [String] = []
+        for (legacyKey, key) in [("ClaudeMonitor.accounts", accountsKey),
+                                 ("ClaudeMonitor.settings", settingsKey),
+                                 ("ClaudeMonitor.alertMemory", alertMemoryKey)] {
+            guard let data = legacyDefaults.data(forKey: legacyKey) else { continue }
+            defaults.set(data, forKey: key)
+            migrated.append(key)
+        }
+        guard !migrated.isEmpty else { return }
+        log.info("migrated \(migrated.count) key(s) from \(legacyDefaultsDomain, privacy: .public): \(migrated.joined(separator: ","), privacy: .public)")
     }
 
     public func save() {
@@ -422,6 +446,11 @@ public final class AppStore {
         }
     }
 }
+
+/// Preferences domain of the pre-rename Claude Monitor builds — see `AppStore.migrateLegacyDefaults`.
+/// File scope, not a static member: `AppStore` is `@MainActor`, and a default argument is
+/// evaluated in a nonisolated context.
+let legacyDefaultsDomain = "com.roy.claudemonitor"
 
 /// Off-main logger for the nonisolated fetch path (AppStore's own logger is MainActor-bound).
 private let fetchLog = Logger(subsystem: "com.roy.agentsmonitor", category: "poll")
