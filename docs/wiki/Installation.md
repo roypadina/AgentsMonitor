@@ -46,6 +46,19 @@ rebuild. If you build from source repeatedly, expect this prompt — and any key
 Allow" — to reset each time. See [[Architecture#why-no-notarization]] for the reasoning, and
 [[Architecture#keychain-access]] for why that doesn't actually block normal use.
 
+## Clear quarantine first
+
+Ad-hoc signed, not notarized, and Homebrew 6 removed `--no-quarantine` — so an installed bundle
+always carries `com.apple.quarantine`. The Gatekeeper dialog that raises on first launch has
+**"Move to Trash" as its default button**, and answering it by reflex deletes the app. Strip the
+flag *before* launching:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/AgentsMonitor.app"
+```
+
+Only the bundle is at stake either way — accounts and settings live in `defaults`.
+
 ## First run
 
 - No Dock icon — it's a menu-bar-only app. Look for the gauge icon.

@@ -202,7 +202,8 @@ Each toggled per account in Settings → Accounts:
 
 Three tabs, all changes persisted immediately.
 
-**Accounts** — the full account list: rename, per-account **Desktop** and **ntfy** toggles, a
+**Accounts** — the full account list: rename (the **Rename** button next to each name — an
+inline field, Return or **Save** to commit), per-account **Desktop** and **ntfy** toggles, a
 per-account ntfy topic override, remove, plus **Add Claude Account…** / **Add Codex Account…**
 (folder pickers validated
 against a real keychain entry) and **Add Remote Account…** (paste sheet). A remote account
@@ -218,6 +219,13 @@ showing "Credentials expired" gets a **Repaste…** button right on its row.
   can confirm they're wired up without waiting for a real threshold breach.
 
 **General:**
+- **Provider badge** — how much of the provider shows next to each account name, here and in the
+  popover: **Icon and name** (default), **Icon only**, **Name only**, or **Hidden**. The badge is
+  the reason a Codex account named `you@example.com` doesn't have to be read to be identified.
+- **Color-code by provider** — tints the badge in that agent's own accent color and runs the same
+  color down the leading edge of its popover card. Deliberately *not* applied to the limit bars
+  or the usage dot: those are green/orange/red by **severity**, and a provider tint there would
+  read as a health signal. Both controls have a live preview of the two providers side by side.
 - **Poll interval** — 30s / 1m / 3m / 5m / 10m. Changing it restarts the poll loop immediately
   with the new interval.
 - **Start at login** — registers/unregisters a `SMAppService` login item. Self-healing: it

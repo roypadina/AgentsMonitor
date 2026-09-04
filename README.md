@@ -37,6 +37,11 @@ Claude Code and the status line in Codex:
 - Severity coloring (green / orange / red) — as the API reports it for Claude, graded at the same
   cutoffs locally for Codex, which sends none — a **pacing tick** on
   each bar (where an even burn rate would put you right now), and a "resets in 2h 14m" countdown
+- A **provider badge** on every account — the agent's mark plus its name, in its own color, with
+  the color also running down the leading edge of the card. Settings → General → Accounts picks
+  how much shows (icon and name, icon only, name only, hidden) and whether it's colored. The
+  color stays on the badge and the stripe: bars and dots mean *severity*, so tinting those by
+  provider would read as a health signal
 - Menu-bar label, fully configurable (Settings → General + the per-account **Menu bar**
   checkbox): pick **which accounts** appear, **which value** each one shows (worst limit,
   session, weekly, or per-model weekly), plus optional extras per account: the **per-model
@@ -103,8 +108,17 @@ brew trust --cask roypadina/tap/agents-monitor   # newer Homebrew requires trust
 brew install --cask agents-monitor
 ```
 
-The app is ad-hoc signed (not notarized). After install, either right-click it in
-`/Applications` → **Open**, or clear quarantine: `xattr -dr com.apple.quarantine "/Applications/AgentsMonitor.app"`.
+> [!IMPORTANT]
+> **Clear quarantine before the first launch, not after.** The app is ad-hoc signed (not
+> notarized), and Homebrew 6 removed `--no-quarantine`, so a cask install always lands
+> quarantined. Launching it in that state raises the Gatekeeper dialog whose *default button is
+> **Move to Trash*** — answer it by reflex and the app is gone from `/Applications`.
+>
+> ```bash
+> xattr -dr com.apple.quarantine "/Applications/AgentsMonitor.app"   # then launch
+> ```
+>
+> Right-click → **Open** works too, as long as you pick Open and not Move to Trash.
 
 ### Manual install
 

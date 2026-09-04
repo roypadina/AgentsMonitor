@@ -60,6 +60,28 @@ rebuild. If you build from source repeatedly, expect the Gatekeeper prompt — a
 tool; see [the Architecture wiki page](wiki/Architecture.md) for why the app doesn't need it
 anyway.
 
+## Clear quarantine first
+
+The app is ad-hoc signed and not notarized, and Homebrew 6 dropped the `--no-quarantine`
+option — so however you install it, the bundle arrives with `com.apple.quarantine` set.
+Launching it like that raises the Gatekeeper dialog whose **default button is "Move to Trash"**,
+and answering that dialog by reflex deletes the app out of `/Applications`. (Observed exactly
+that: `syspolicyd` logs `Prompt shown (6, 0)`, then the bundle is gone.)
+
+So strip it before the first launch, not after:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/AgentsMonitor.app"
+open /Applications/AgentsMonitor.app
+```
+
+Right-click → **Open** also works — just make sure you click Open, not Move to Trash. A copy you
+built yourself needs none of this: `xcodebuild` registers an execution-policy exception for it,
+so it never gets prompted.
+
+If the app does vanish, nothing is lost but the bundle — your accounts, settings and alert
+history live in `defaults`, so reinstalling and clearing quarantine brings it all back.
+
 ## First run
 
 1. **No Dock icon.** Agents Monitor is a menu-bar-only app (`LSUIElement`); look for the gauge
