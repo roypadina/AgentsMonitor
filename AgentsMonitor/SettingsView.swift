@@ -67,11 +67,7 @@ private struct AccountsTab: View {
                     Button("Save") { commitRename(account) }.controlSize(.small)
                 } else {
                     Text(account.name)
-                    Text(account.provider.displayName)
-                        .font(.caption2)
-                        .padding(.horizontal, 5).padding(.vertical, 1)
-                        .background(Color.secondary.opacity(0.15), in: Capsule())
-                        .foregroundStyle(.secondary)
+                    ProviderBadge(provider: account.provider)
                     Text(isLocal(account) ? "Local" : "Remote")
                         .font(.caption2).foregroundStyle(.secondary)
                     Button("Rename") { beginRename(account) }
@@ -339,6 +335,28 @@ private struct GeneralTab: View {
                     .foregroundStyle(LoginItem.status == .requiresApproval ? Color.orange : .secondary)
             }
 
+            Section("Accounts") {
+                Picker("Provider badge", selection: badgeBinding) {
+                    ForEach(ProviderBadgeStyle.allCases, id: \.self) { style in
+                        Text(style.label).tag(style)
+                    }
+                }
+                Toggle("Color-code by provider", isOn: bindingBool(\.providerColors))
+                    .disabled(store.settings.providerBadge == .hidden)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 8) {
+                        ForEach(Provider.allCases, id: \.self) { provider in
+                            ProviderBadge(provider: provider,
+                                          style: store.settings.providerBadge == .hidden ? .iconAndName : store.settings.providerBadge,
+                                          colored: store.settings.providerColors)
+                        }
+                    }
+                    Text("Shown next to every account name, here and in the popover. The color also runs down the edge of each card. Limit bars and the usage dot stay severity-colored — rename an account from the Accounts tab.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
             Section("Menu bar") {
                 Toggle("Show percent", isOn: bindingBool(\.showPercentInMenuBar))
                 Picker("Value", selection: metricBinding) {
@@ -377,6 +395,13 @@ private struct GeneralTab: View {
         }
         .padding()
         .onAppear { loginOn = LoginItem.isEnabled }
+    }
+
+    private var badgeBinding: Binding<ProviderBadgeStyle> {
+        Binding(
+            get: { store.settings.providerBadge },
+            set: { store.settings.providerBadge = $0; store.save() }
+        )
     }
 
     private var pollBinding: Binding<Int> {

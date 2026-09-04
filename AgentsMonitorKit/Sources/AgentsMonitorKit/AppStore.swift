@@ -15,6 +15,8 @@ public struct Settings: Codable, Equatable, Sendable {
     public var toastEnabled: Bool = true
     public var soundEnabled: Bool = true
     public var extraUsageAlerts: Bool = true   // notify when paid extra usage starts moving
+    public var providerBadge: ProviderBadgeStyle = .iconAndName
+    public var providerColors: Bool = true     // tint the provider badge and account name
 
     public init() {}
 
@@ -36,6 +38,8 @@ public struct Settings: Codable, Equatable, Sendable {
         toastEnabled = try c.decodeIfPresent(Bool.self, forKey: .toastEnabled) ?? d.toastEnabled
         soundEnabled = try c.decodeIfPresent(Bool.self, forKey: .soundEnabled) ?? d.soundEnabled
         extraUsageAlerts = try c.decodeIfPresent(Bool.self, forKey: .extraUsageAlerts) ?? d.extraUsageAlerts
+        providerBadge = try c.decodeIfPresent(ProviderBadgeStyle.self, forKey: .providerBadge) ?? d.providerBadge
+        providerColors = try c.decodeIfPresent(Bool.self, forKey: .providerColors) ?? d.providerColors
     }
 }
 

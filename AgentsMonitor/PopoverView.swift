@@ -83,9 +83,13 @@ private struct AccountCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            header
-            content
+        HStack(alignment: .top, spacing: 8) {
+            ProviderAccent(provider: account.provider)
+            VStack(alignment: .leading, spacing: 8) {
+                header
+                content
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(12)
         .background(.background.secondary, in: RoundedRectangle(cornerRadius: 10))
@@ -94,11 +98,7 @@ private struct AccountCard: View {
     private var header: some View {
         HStack(spacing: 6) {
             Text(account.name).font(.headline)
-            Text(account.provider.displayName)
-                .font(.caption2)
-                .padding(.horizontal, 6).padding(.vertical, 2)
-                .background(Color.secondary.opacity(0.15), in: Capsule())
-                .foregroundStyle(.secondary)
+            ProviderBadge(provider: account.provider)
             Text(isLocal ? "Local" : "Remote")
                 .font(.caption2)
                 .padding(.horizontal, 6).padding(.vertical, 2)

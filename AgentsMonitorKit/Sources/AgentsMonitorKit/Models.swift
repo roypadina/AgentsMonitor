@@ -38,6 +38,26 @@ public enum Provider: String, Codable, CaseIterable, Hashable, Sendable {
         }
     }
 
+    /// SF Symbol standing in for the provider's mark: Anthropic's asterisk-like starburst,
+    /// and braces for Codex. Both read at 10pt and both exist in SF Symbols 5 (macOS 14).
+    public var iconSystemName: String {
+        switch self {
+        case .claude: return "asterisk"
+        case .codex: return "curlybraces"
+        }
+    }
+
+    /// sRGB components of the provider's accent, close to each vendor's own brand color and far
+    /// enough apart to tell at a glance. Deliberately kept off the limit bars and the usage dot:
+    /// those carry *severity* (green/orange/red), and a provider tint there would read as a
+    /// health signal. Components rather than a `Color` so the Kit stays free of SwiftUI.
+    public var tintRGB: (red: Double, green: Double, blue: Double) {
+        switch self {
+        case .claude: return (0.851, 0.467, 0.341)   // #D97757
+        case .codex: return (0.063, 0.639, 0.498)    // #10A37F
+        }
+    }
+
     /// What to tell the user when the stored token stops working. Neither provider's token is
     /// refreshed by this app — the rotation would log its CLI out — so the fix is always to let
     /// the CLI mint a fresh one.
@@ -95,6 +115,23 @@ public struct Account: Codable, Identifiable, Hashable, Sendable {
         // Blobs written before Codex support existed have no provider — they are all Claude.
         provider = try c.decodeIfPresent(Provider.self, forKey: .provider) ?? .claude
     }
+}
+
+/// How much of the provider is spelled out next to an account name.
+public enum ProviderBadgeStyle: String, Codable, CaseIterable, Sendable {
+    case iconAndName, icon, name, hidden
+
+    public var label: String {
+        switch self {
+        case .iconAndName: return "Icon and name"
+        case .icon: return "Icon only"
+        case .name: return "Name only"
+        case .hidden: return "Hidden"
+        }
+    }
+
+    public var showsIcon: Bool { self == .iconAndName || self == .icon }
+    public var showsName: Bool { self == .iconAndName || self == .name }
 }
 
 /// Which number the menu bar shows per account.
