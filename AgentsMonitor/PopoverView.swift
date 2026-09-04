@@ -59,10 +59,17 @@ struct PopoverView: View {
                 Text("Never refreshed")
             }
             Spacer()
+            // Explicit accessibility labels. Inspecting this popover over the accessibility API
+            // showed the footer as three buttons with no title, which would leave VoiceOver
+            // announcing them as anonymous. The tree here reports its children inconsistently
+            // (69 elements one moment, none the next), so treat these as belt-and-braces rather
+            // than a confirmed fix — they cost nothing and are correct either way.
             Button("Refresh") { Task { await store.refresh() } }
                 .disabled(store.isRefreshing)
-            SettingsLink { Text("Settings") }
+                .accessibilityLabel("Refresh")
+            OpenSettingsButton()
             Button("Quit") { NSApplication.shared.terminate(nil) }
+                .accessibilityLabel("Quit")
         }
         .font(.caption)
         .controlSize(.small)
