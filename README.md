@@ -1,6 +1,6 @@
 <div align="center">
 
-# Claude Monitor
+# Agents Monitor
 
 ### Watch your Claude Code usage limits from the menu bar — before you hit them.
 
@@ -16,7 +16,7 @@ before a session, weekly, or spend limit runs out from under you.
 
 <br>
 
-<img src="docs/screenshots/popover.png" alt="Claude Monitor popover: three accounts, each showing Session/Week/Week · Fable progress bars with severity coloring and a pacing tick, plus a monthly spend row." width="420">
+<img src="docs/screenshots/popover.png" alt="Agents Monitor popover: three accounts, each showing Session/Week/Week · Fable progress bars with severity coloring and a pacing tick, plus a monthly spend row." width="420">
 
 </div>
 
@@ -53,7 +53,7 @@ in Claude Code itself:
   - macOS: `security find-generic-password -s "Claude Code-credentials" -w`
   - Linux: `cat ~/.claude/.credentials.json`
 
-  Stored in an app-owned keychain item, device-only (no iCloud sync). Claude Monitor refreshes
+  Stored in an app-owned keychain item, device-only (no iCloud sync). Agents Monitor refreshes
   these tokens itself once they expire. One caveat: if the source machine's own Claude Code also
   refreshes that lineage, one side loses the race and the card falls back to
   *Paste credentials…* — see [the User Guide](docs/USER-GUIDE.md#remote-accounts) for the details.
@@ -78,7 +78,7 @@ Three sinks, each toggleable per account in Settings:
 - **Toast** — a floating panel top-right with a slide-and-fade animation and a sound
 
 <div align="center">
-<img src="docs/screenshots/toasts.png" alt="Claude Monitor toast notifications stacking top-right for a Week · Fable and a Spend alert, plus the macOS login-item banner." width="420">
+<img src="docs/screenshots/toasts.png" alt="Agents Monitor toast notifications stacking top-right for a Week · Fable and a Spend alert, plus the macOS login-item banner." width="420">
 </div>
 
 ## Install
@@ -87,35 +87,35 @@ Three sinks, each toggleable per account in Settings:
 
 ```bash
 brew tap roypadina/tap
-brew trust --cask roypadina/tap/claude-monitor   # newer Homebrew requires trusting third-party casks
-brew install --cask claude-monitor
+brew trust --cask roypadina/tap/agents-monitor   # newer Homebrew requires trusting third-party casks
+brew install --cask agents-monitor
 ```
 
 The app is ad-hoc signed (not notarized). After install, either right-click it in
-`/Applications` → **Open**, or clear quarantine: `xattr -dr com.apple.quarantine "/Applications/ClaudeMonitor.app"`.
+`/Applications` → **Open**, or clear quarantine: `xattr -dr com.apple.quarantine "/Applications/AgentsMonitor.app"`.
 
 ### Manual install
 
-Download the latest `ClaudeMonitor.app.zip` from
-[Releases](https://github.com/roypadina/ClaudeMonitor/releases), unzip, and drag
-`ClaudeMonitor.app` into `/Applications`.
+Download the latest `AgentsMonitor.app.zip` from
+[Releases](https://github.com/roypadina/AgentsMonitor/releases), unzip, and drag
+`AgentsMonitor.app` into `/Applications`.
 
 ### Build from source
 
 ```bash
-git clone https://github.com/roypadina/ClaudeMonitor.git
-cd ClaudeMonitor
-xcodebuild -workspace ClaudeMonitor.xcworkspace -scheme ClaudeMonitor \
+git clone https://github.com/roypadina/AgentsMonitor.git
+cd AgentsMonitor
+xcodebuild -workspace AgentsMonitor.xcworkspace -scheme AgentsMonitor \
   -configuration Release -derivedDataPath build build
-cp -R build/Build/Products/Release/ClaudeMonitor.app /Applications/
-open /Applications/ClaudeMonitor.app
+cp -R build/Build/Products/Release/AgentsMonitor.app /Applications/
+open /Applications/AgentsMonitor.app
 ```
 
-> Claude Monitor is **ad-hoc signed, not notarized** (no paid Apple Developer ID). On first
+> Agents Monitor is **ad-hoc signed, not notarized** (no paid Apple Developer ID). On first
 > launch macOS will refuse to open it — **right-click the app in `/Applications` → Open** (then
 > Open again on the second dialog), or clear quarantine yourself:
 > ```bash
-> xattr -dr com.apple.quarantine "/Applications/ClaudeMonitor.app"
+> xattr -dr com.apple.quarantine "/Applications/AgentsMonitor.app"
 > ```
 > Every line of this app is in this repo — build it yourself if you'd rather not trust a
 > prebuilt binary. See [docs/INSTALL.md](docs/INSTALL.md) for the full walkthrough, including
@@ -124,7 +124,7 @@ open /Applications/ClaudeMonitor.app
 ## No keychain prompts
 
 Reading another app's keychain item from an ad-hoc-signed app normally blocks on a consent
-dialog. Claude Monitor suppresses that keychain UI and falls back to Apple-signed
+dialog. Agents Monitor suppresses that keychain UI and falls back to Apple-signed
 `/usr/bin/security`, which created Claude Code's items and passes their keychain partition check
 silently — so it works headless, survives rebuilds, and never interrupts you with a password
 prompt.
@@ -139,13 +139,13 @@ prompt.
 ## Build & test
 
 ```bash
-swift test --package-path ClaudeMonitorKit          # 39 unit tests (parsing, derivation, alert engine, credentials, settings, menu bar)
-xcodebuild -workspace ClaudeMonitor.xcworkspace -scheme ClaudeMonitor \
+swift test --package-path AgentsMonitorKit          # 39 unit tests (parsing, derivation, alert engine, credentials, settings, menu bar)
+xcodebuild -workspace AgentsMonitor.xcworkspace -scheme AgentsMonitor \
   -configuration Release -derivedDataPath build build
-cp -R build/Build/Products/Release/ClaudeMonitor.app /Applications/
+cp -R build/Build/Products/Release/AgentsMonitor.app /Applications/
 ```
 
-No third-party dependencies. All logic lives in the `ClaudeMonitorKit` local SPM package,
+No third-party dependencies. All logic lives in the `AgentsMonitorKit` local SPM package,
 independently testable with no keychain or network access required; the app target is thin
 SwiftUI (`MenuBarExtra`).
 
@@ -156,20 +156,20 @@ and [Claude-Usage-Tracker](https://github.com/hamed-elfayome/Claude-Usage-Tracke
 
 ## Debugging / logs
 
-Everything logs to unified logging under subsystem `com.roy.claudemonitor` (categories: `poll`,
+Everything logs to unified logging under subsystem `com.roy.agentsmonitor` (categories: `poll`,
 `alerts`, `http`, `credentials`, `notify`). No tokens or credential payloads are ever logged; account display names do appear
 in your local log (it never leaves this Mac).
 
 ```bash
 # live tail
-/usr/bin/log stream --predicate 'subsystem == "com.roy.claudemonitor"' --level debug
+/usr/bin/log stream --predicate 'subsystem == "com.roy.agentsmonitor"' --level debug
 # recent history (persisted store)
-/usr/bin/log show --last 2h --info --debug --predicate 'subsystem == "com.roy.claudemonitor"'
+/usr/bin/log show --last 2h --info --debug --predicate 'subsystem == "com.roy.agentsmonitor"'
 ```
 
 Alert decisions log as `eval <account>/<limit>: <pct>% level=<new> stored=<old> sameWindow=<bool>
 fire=<bool>` — enough to reconstruct why any alert did or didn't fire. Alert de-dupe memory
-persists across relaunches (`ClaudeMonitor.alertMemory` in `defaults`); delete that key to force
+persists across relaunches (`AgentsMonitor.alertMemory` in `defaults`); delete that key to force
 a full re-alert.
 
 Window-roll detection uses a 120s tolerance on `resets_at` because the server recomputes it on

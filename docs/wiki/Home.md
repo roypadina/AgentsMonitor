@@ -1,12 +1,12 @@
-# Claude Monitor Wiki
+# Agents Monitor Wiki
 
-Claude Monitor is a native macOS menu-bar app that polls Claude Code's own usage endpoint for
+Agents Monitor is a native macOS menu-bar app that polls Claude Code's own usage endpoint for
 any number of accounts — local ones already logged in on this Mac, and remote ones pasted in
 from elsewhere — and alerts you (desktop, [ntfy](https://ntfy.sh) push, in-app toast) before a
 session, weekly, or spend limit runs out.
 
 No third-party dependencies, no telemetry, MIT licensed. See the
-[repository README](https://github.com/roypadina/ClaudeMonitor#readme) for the elevator pitch
+[repository README](https://github.com/roypadina/AgentsMonitor#readme) for the elevator pitch
 and install one-liner.
 
 ## Pages
@@ -30,5 +30,5 @@ and install one-liner.
 | License | MIT |
 
 For the full canonical guides (kept in the repo itself, not just the wiki) see
-[docs/INSTALL.md](https://github.com/roypadina/ClaudeMonitor/blob/main/docs/INSTALL.md) and
-[docs/USER-GUIDE.md](https://github.com/roypadina/ClaudeMonitor/blob/main/docs/USER-GUIDE.md).
+[docs/INSTALL.md](https://github.com/roypadina/AgentsMonitor/blob/main/docs/INSTALL.md) and
+[docs/USER-GUIDE.md](https://github.com/roypadina/AgentsMonitor/blob/main/docs/USER-GUIDE.md).

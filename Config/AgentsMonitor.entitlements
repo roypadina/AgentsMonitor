@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- AgentsMonitor runs UN-SANDBOXED: it reads other apps' (Claude Code's)
+	     keychain items to poll usage, writes its own OAuth lineage back to
+	     the keychain for remote accounts, and registers a login item via
+	     SMAppService. The sandbox would block cross-app keychain access. -->
+	<key>com.apple.security.app-sandbox</key>
+	<false/>
+</dict>
+</plist>

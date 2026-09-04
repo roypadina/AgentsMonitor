@@ -20,7 +20,7 @@
 
 ## Menu bar
 
-Claude Monitor lives only in the menu bar — there's no Dock icon and no main window. The label
+Agents Monitor lives only in the menu bar — there's no Dock icon and no main window. The label
 is a gauge icon plus the **worst percent across every configured account** (e.g. `95%`), updated
 after every poll. If you turn off "Show percent in menu bar" in Settings, only the icon remains.
 
@@ -32,7 +32,7 @@ always plain text/icon. Color lives in the popover and in toasts instead.
 Click the menu bar icon to open the popover: one card per account, each with a row per limit
 plus a spend row when applicable.
 
-<img src="screenshots/popover.png" alt="Claude Monitor popover showing three account cards" width="420">
+<img src="screenshots/popover.png" alt="Agents Monitor popover showing three account cards" width="420">
 
 **Per limit row:**
 - **Label** — `Session` (the rolling 5-hour window), `Week` (7-day window), or
@@ -67,17 +67,17 @@ see the [Troubleshooting table](#troubleshooting) for what each one means and ho
 A local account is any `CLAUDE_CONFIG_DIR` that's already logged in to Claude Code on this Mac
 — `~/.claude` by default, or `~/.claude-<name>` for an additional profile.
 
-- **Discovery is automatic on first launch:** Claude Monitor checks `~/.claude` and globs
+- **Discovery is automatic on first launch:** Agents Monitor checks `~/.claude` and globs
   `~/.claude-*`, adding every directory that has a matching keychain entry. You can add more
   later from Settings → Accounts → **Add Local Account…** (folder picker).
 - **Naming:** taken from `oauthAccount.emailAddress` (or `organizationName`) in that profile's
   `~/.claude*/.claude.json`. If no label is found, it falls back to the directory name. Rename
   any account from Settings or from the popover.
 - **Tokens are read fresh from the keychain on every poll and never refreshed by this app.**
-  Claude Code owns the refresh token for a local account; if Claude Monitor refreshed it, Claude
+  Claude Code owns the refresh token for a local account; if Agents Monitor refreshed it, Claude
   Code's own next refresh would fail with `invalid_grant` and force that profile to `/login`.
   As long as you run Claude Code against that profile occasionally, its token stays fresh on its
-  own and Claude Monitor just reads it.
+  own and Agents Monitor just reads it.
 - If a local account's token *does* go stale (you haven't used that profile in a while), the
   card shows **"Login token expired"** — open a Claude Code session for that profile (running
   any command re-triggers its own refresh) rather than `/login`ing unless that doesn't fix it.
@@ -85,7 +85,7 @@ A local account is any `CLAUDE_CONFIG_DIR` that's already logged in to Claude Co
 ### Remote accounts
 
 A remote account is one that isn't logged in to Claude Code on this Mac at all — typically
-another machine, or a CI box. Claude Monitor owns its credentials entirely: it stores them in
+another machine, or a CI box. Agents Monitor owns its credentials entirely: it stores them in
 its own keychain item and refreshes the token itself when it expires.
 
 **To add one:** Settings → Accounts → **Add Remote Account…**, then paste the credentials JSON
@@ -99,16 +99,16 @@ security find-generic-password -s "Claude Code-credentials" -w
 cat ~/.claude/.credentials.json
 ```
 
-Paste the whole JSON blob into the sheet and click **Save**. Claude Monitor validates it parses
+Paste the whole JSON blob into the sheet and click **Save**. Agents Monitor validates it parses
 and contains `claudeAiOauth.accessToken` before storing it.
 
-**Storage:** a keychain item named `ClaudeMonitor-account-<uuid>`, accessible only on this
+**Storage:** a keychain item named `AgentsMonitor-account-<uuid>`, accessible only on this
 device (`kSecAttrAccessibleWhenUnlockedThisDeviceOnly` — no iCloud sync). The pasted text is
 never written to `UserDefaults` and never logged.
 
 **Rotation-race caveat:** if the source machine's own Claude Code *also* refreshes that same
 OAuth lineage — because you're still actively using Claude Code there too — one side's refresh
-token wins and the other's becomes stale. When that happens on Claude Monitor's side, the card
+token wins and the other's becomes stale. When that happens on Agents Monitor's side, the card
 shows **"Credentials expired"** with a **Paste credentials…** button; just repeat the paste with
 a fresh copy from the source machine. Remote accounts work best for machines you're *not*
 actively running Claude Code on concurrently — a spare laptop, a CI account, a profile you only
@@ -118,7 +118,7 @@ touch occasionally.
 
 ### How a level is decided
 
-For every limit (including spend, when it has a configured budget), Claude Monitor computes:
+For every limit (including spend, when it has a configured budget), Agents Monitor computes:
 
 ```
 level = max(severity level of the API's own "severity" field, threshold level of the percent)
@@ -152,7 +152,7 @@ refresh grant failed) each alert once at critical under a dedicated `auth` key, 
 again once that account returns to a healthy poll.
 
 A single 401 on a local account usually isn't a real auth failure — it's Claude Code itself
-rotating that profile's token mid-poll. Claude Monitor re-reads the keychain and retries once
+rotating that profile's token mid-poll. Agents Monitor re-reads the keychain and retries once
 after a couple of seconds before treating it as anything alertable, and even then the alert
 only fires on the **second consecutive** failed poll, not the first. This is why you may
 occasionally see a state flash and clear in the logs without any alert at all — that's the
@@ -172,7 +172,7 @@ Each toggled per account in Settings → Accounts:
 - **Toast** — an in-app floating panel, top-right, slide-and-fade with sound, shown regardless
   of which app is frontmost. Global on/off in Settings → General, not per-account.
 
-<img src="screenshots/toasts.png" alt="Two Claude Monitor toast alerts stacked top-right" width="420">
+<img src="screenshots/toasts.png" alt="Two Agents Monitor toast alerts stacked top-right" width="420">
 
 ## Settings
 
@@ -201,7 +201,7 @@ showing "Credentials expired" gets a **Repaste…** button right on its row.
 - **Show percent in menu bar**, **Toast notifications**, **Sound** — straightforward on/off
   toggles.
 
-<img src="screenshots/settings-accounts.png" alt="Claude Monitor Settings, Accounts tab" width="440">
+<img src="screenshots/settings-accounts.png" alt="Agents Monitor Settings, Accounts tab" width="440">
 
 ## ntfy setup from zero
 
@@ -211,12 +211,12 @@ for the public server.
 1. **Install the app** on your phone: [ntfy for iOS](https://apps.apple.com/app/ntfy/id1625396347)
    or [ntfy for Android](https://play.google.com/store/apps/details?id=io.heckel.ntfy).
 2. **Pick a topic name.** A topic is just a string — anyone who knows it can publish or
-   subscribe, so pick something unguessable, e.g. `claude-monitor-yourname-a1b2c3`. There's no
+   subscribe, so pick something unguessable, e.g. `agents-monitor-yourname-a1b2c3`. There's no
    registration step.
 3. **Subscribe** to that topic in the ntfy app (`+` → enter the topic name → Subscribe). If
    you're using a self-hosted ntfy server instead of `ntfy.sh`, set the server URL when
    subscribing too.
-4. In Claude Monitor, **Settings → Alerts**, set:
+4. In Agents Monitor, **Settings → Alerts**, set:
    - **Server** — `https://ntfy.sh` (default), or your self-hosted URL.
    - **Default topic** — the topic name from step 2.
 5. Enable **ntfy** on whichever accounts should push to your phone (Settings → Accounts). Every
@@ -239,16 +239,16 @@ for the public server.
 
 ## Logs
 
-Everything logs to unified logging under subsystem `com.roy.claudemonitor` (categories: `poll`,
+Everything logs to unified logging under subsystem `com.roy.agentsmonitor` (categories: `poll`,
 `alerts`, `http`, `credentials`, `notify`). No tokens or credential payloads are ever logged;
 account display names do appear in your local log (it never leaves this Mac).
 
 ```bash
 # live tail
-/usr/bin/log stream --predicate 'subsystem == "com.roy.claudemonitor"' --level debug
+/usr/bin/log stream --predicate 'subsystem == "com.roy.agentsmonitor"' --level debug
 
 # recent history
-/usr/bin/log show --last 2h --info --debug --predicate 'subsystem == "com.roy.claudemonitor"'
+/usr/bin/log show --last 2h --info --debug --predicate 'subsystem == "com.roy.agentsmonitor"'
 ```
 
 Alert decisions log as:

@@ -7,8 +7,8 @@
 // ==========================================
 // Test Target Settings (Customizable by scaffold tool)
 // ==========================================
-PRODUCT_BUNDLE_IDENTIFIER = com.roy.claudemonitor
-TEST_TARGET_NAME = ClaudeMonitor
+PRODUCT_BUNDLE_IDENTIFIER = com.roy.agentsmonitor
+TEST_TARGET_NAME = AgentsMonitor
 
 // Fix duplicate module name issue
 PRODUCT_MODULE_NAME = $(PRODUCT_NAME)UITests

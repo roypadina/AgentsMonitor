@@ -22,7 +22,7 @@ SOFTWARE.
 
 ---
 
-Portions of ClaudeMonitorKit (keychain service-name derivation, credential read/write
+Portions of AgentsMonitorKit (keychain service-name derivation, credential read/write
 primitives, and OAuth refresh-grant logic in `KeychainService.swift` and
 `CredentialStore.swift`) are adapted from Claude-Usage-Tracker
 (https://github.com/hamed-elfayome/Claude-Usage-Tracker), MIT-licensed; API-endpoint

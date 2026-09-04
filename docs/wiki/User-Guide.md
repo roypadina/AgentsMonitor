@@ -41,7 +41,7 @@ security find-generic-password -s "Claude Code-credentials" -w    # macOS source
 cat ~/.claude/.credentials.json                                    # Linux source machine
 ```
 
-Claude Monitor stores it in its own keychain item and refreshes it itself. If the source
+Agents Monitor stores it in its own keychain item and refreshes it itself. If the source
 machine is *also* actively refreshing that same lineage, one side loses the race — see
 [[Troubleshooting#rotation-race]].
 
@@ -75,5 +75,5 @@ priority 3/4), **Toast** panel (global on/off, not per-account).
 | General | Poll interval (30s–10m), Start at login (self-healing), show-percent toggle, toast on/off, sound on/off |
 
 Full detail, screenshots, and the complete troubleshooting table live in
-[docs/USER-GUIDE.md](https://github.com/roypadina/ClaudeMonitor/blob/main/docs/USER-GUIDE.md) in
+[docs/USER-GUIDE.md](https://github.com/roypadina/AgentsMonitor/blob/main/docs/USER-GUIDE.md) in
 the repo.

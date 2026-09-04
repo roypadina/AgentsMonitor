@@ -6,9 +6,9 @@
 // ==========================================
 // Project Identity
 // ==========================================
-PRODUCT_NAME = ClaudeMonitor
-PRODUCT_DISPLAY_NAME = Claude Monitor
-PRODUCT_BUNDLE_IDENTIFIER = com.roy.claudemonitor
+PRODUCT_NAME = AgentsMonitor
+PRODUCT_DISPLAY_NAME = Agents Monitor
+PRODUCT_BUNDLE_IDENTIFIER = com.roy.agentsmonitor
 MARKETING_VERSION = 1.2.1
 CURRENT_PROJECT_VERSION = 4
 
@@ -27,12 +27,12 @@ INFOPLIST_KEY_LSUIElement = YES
 // ==========================================
 // Entitlements
 // ==========================================
-// AI agents can modify Config/ClaudeMonitor.entitlements to add capabilities
-CODE_SIGN_ENTITLEMENTS = Config/ClaudeMonitor.entitlements
+// AI agents can modify Config/AgentsMonitor.entitlements to add capabilities
+CODE_SIGN_ENTITLEMENTS = Config/AgentsMonitor.entitlements
 
 // ==========================================
 // Code Signing — ad-hoc, no Apple Developer account required.
-// ClaudeMonitor is a personal/local tool; sign to run locally.
+// AgentsMonitor is a personal/local tool; sign to run locally.
 // ==========================================
 CODE_SIGN_STYLE = Manual
 CODE_SIGN_IDENTITY = -
