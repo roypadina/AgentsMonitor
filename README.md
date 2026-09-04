@@ -2,12 +2,13 @@
 
 # Agents Monitor
 
-### Watch your Claude Code usage limits from the menu bar — before you hit them.
+### Watch your coding agents' usage limits from the menu bar — before you hit them.
 
-A tiny native macOS menu-bar app that polls Claude Code's own usage endpoint for
-**any number of accounts** on this Mac (or pasted in from another machine) and alerts you —
-desktop notification, in-app toast with sound, and [ntfy](https://ntfy.sh) push to your phone —
-before a session, weekly, or spend limit runs out from under you.
+A tiny native macOS menu-bar app that polls the usage endpoints **Claude Code** and **Codex**
+use themselves, for **any number of accounts of either** on this Mac (or pasted in from another
+machine), and alerts you — desktop notification, in-app toast with sound, and
+[ntfy](https://ntfy.sh) push to your phone — before a session, weekly, or spend limit runs out
+from under you.
 
 [![macOS](https://img.shields.io/badge/macOS-14%2B-000000?logo=apple&logoColor=white)](https://www.apple.com/macos/)
 [![Swift](https://img.shields.io/badge/Swift-5.9-F05138?logo=swift&logoColor=white)](https://swift.org)
@@ -24,13 +25,17 @@ before a session, weekly, or spend limit runs out from under you.
 
 ## What it shows
 
-Per account, straight from Anthropic's OAuth usage endpoint — the same data behind `/usage`
-in Claude Code itself:
+Per account, straight from the provider's own usage endpoint — the same data behind `/usage` in
+Claude Code and the status line in Codex:
 
 - **Session** (5-hour window), **Week**, **Week · Fable** (and any future limit bucket —
-  rendering is generic, so new buckets from Anthropic show up automatically, no update needed)
-- **Extra-usage spend this month** (`$728.60 / $800.00 · 91%`)
-- Severity coloring (green / orange / red) exactly as the API reports it, a **pacing tick** on
+  rendering is generic, so new buckets show up automatically, no update needed). Codex accounts
+  report the same two headline windows, plus its code-review cap when the plan has one.
+- **Extra-usage spend this month** (`$728.60 / $800.00 · 91%`) — Claude accounts only; the Codex
+  payload reports a remaining credit balance rather than an amount spent, so there is nothing
+  honest to show as spend
+- Severity coloring (green / orange / red) — as the API reports it for Claude, graded at the same
+  cutoffs locally for Codex, which sends none — a **pacing tick** on
   each bar (where an even burn rate would put you right now), and a "resets in 2h 14m" countdown
 - Menu-bar label, fully configurable (Settings → General + the per-account **Menu bar**
   checkbox): pick **which accounts** appear, **which value** each one shows (worst limit,
@@ -43,17 +48,24 @@ in Claude Code itself:
 
 ## Accounts
 
-- **Local** — any `CLAUDE_CONFIG_DIR` already logged in on this Mac (`~/.claude`,
-  `~/.claude-work2`, …). Auto-discovered on first launch straight from the keychain, and
-  labeled using the email/org in `~/.claude*/.claude.json`. Tokens are read fresh from the
-  keychain on every poll and **never refreshed by this app** — refreshing would burn Claude
-  Code's single-use refresh token and force that profile into `/login`.
+- **Claude, local** — any `CLAUDE_CONFIG_DIR` already logged in on this Mac (`~/.claude`,
+  `~/.claude-work2`, …). Auto-discovered straight from the keychain, and labeled using the
+  email/org in `~/.claude*/.claude.json`. Tokens are read fresh from the keychain on every poll
+  and **never refreshed by this app** — refreshing would burn Claude Code's single-use refresh
+  token and force that profile into `/login`.
+- **Codex, local** — any `CODEX_HOME` signed in with a ChatGPT account (`~/.codex`,
+  `~/.codex-work`, …), discovered the same way and labeled with the address in the stored token
+  claims. Credentials come from `<CODEX_HOME>/auth.json`, not the keychain, so there is no
+  consent prompt to work around. Same no-refresh rule and same reason: OpenAI rotates the
+  refresh token on use, so spending it would force `codex login`. An api-key-only login has no
+  plan usage behind it and is skipped.
 - **Remote** — an account that lives on a *different* machine. Settings → Accounts → **Add
   Remote Account…**, then paste the credentials JSON from the source machine:
   - macOS: `security find-generic-password -s "Claude Code-credentials" -w`
   - Linux: `cat ~/.claude/.credentials.json`
 
-  Stored in an app-owned keychain item, device-only (no iCloud sync). Agents Monitor refreshes
+  Remote accounts are Claude-only. Stored in an app-owned keychain item, device-only (no iCloud
+  sync). Agents Monitor refreshes
   these tokens itself once they expire. One caveat: if the source machine's own Claude Code also
   refreshes that lineage, one side loses the race and the card falls back to
   *Paste credentials…* — see [the User Guide](docs/USER-GUIDE.md#remote-accounts) for the details.
@@ -127,7 +139,7 @@ Reading another app's keychain item from an ad-hoc-signed app normally blocks on
 dialog. Agents Monitor suppresses that keychain UI and falls back to Apple-signed
 `/usr/bin/security`, which created Claude Code's items and passes their keychain partition check
 silently — so it works headless, survives rebuilds, and never interrupts you with a password
-prompt.
+prompt. Codex keeps its credentials in a file instead, so that path needs none of this.
 
 ## Learn more
 
@@ -139,7 +151,7 @@ prompt.
 ## Build & test
 
 ```bash
-swift test --package-path AgentsMonitorKit          # 39 unit tests (parsing, derivation, alert engine, credentials, settings, menu bar)
+swift test --package-path AgentsMonitorKit          # 59 unit tests (parsing for both providers, derivation, alert engine, credentials, settings, menu bar, defaults migration)
 xcodebuild -workspace AgentsMonitor.xcworkspace -scheme AgentsMonitor \
   -configuration Release -derivedDataPath build build
 cp -R build/Build/Products/Release/AgentsMonitor.app /Applications/
@@ -178,13 +190,15 @@ every request (±1–2s observed) — exact comparison caused an alert on every 
 
 ## Caveats
 
-- The usage endpoint is undocumented and unsupported by Anthropic; the mandatory
-  `claude-cli/…` User-Agent and 180s default poll interval come from community-measured
-  rate-limit behavior. If polling 429s, the app backs off 3 → 6 → 12 → 15 minutes per account.
+- Both usage endpoints are undocumented and unsupported by their vendors. Anthropic's needs the
+  `claude-cli/…` User-Agent, and its 180s minimum poll interval comes from community-measured
+  rate-limit behavior; the Codex one is `chatgpt.com/backend-api/codex/usage`, sent with the
+  headers the CLI itself uses. If polling 429s, the app backs off 3 → 6 → 12 → 15 minutes per
+  account.
 - Weekly `resets_at` is the server's own naive rolling-window estimate — treat the countdown as
   approximate, not authoritative.
-- Not sandboxed, not notarized. It reads another app's keychain item and calls an undocumented
-  Anthropic endpoint — both are why. See [Is it safe?](docs/USER-GUIDE.md#is-it-safe) in the
+- Not sandboxed, not notarized. It reads another app's keychain item and calls undocumented
+  vendor endpoints — both are why. See [Is it safe?](docs/USER-GUIDE.md#is-it-safe) in the
   user guide.
 
 ## License

@@ -72,7 +72,11 @@ never stall the others.
 This is the one rule in the whole app that, if violated, breaks something *outside* the app —
 so it's enforced at the type level, not by convention.
 
-- **Local accounts** (`AccountKind.local`) — credentials are owned by Claude Code on this Mac.
+- **Codex accounts** (`Provider.codex`) — credentials live in `<CODEX_HOME>/auth.json`, owned by
+  the Codex CLI. Read fresh from the file every poll and **never refreshed**, for exactly the
+  reason below: OpenAI rotates the refresh token on use, so spending it would force
+  `codex login`.
+- **Local Claude accounts** (`AccountKind.local`) — credentials are owned by Claude Code on this Mac.
   Agents Monitor reads the keychain fresh on every poll and **never runs a refresh grant against
   a local account's token.** Refreshing would consume Claude Code's single-use refresh token;
   the CLI's own next refresh would then fail `invalid_grant` and force that profile to `/login`

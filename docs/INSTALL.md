@@ -64,12 +64,15 @@ anyway.
 
 1. **No Dock icon.** Agents Monitor is a menu-bar-only app (`LSUIElement`); look for the gauge
    icon in the menu bar.
-2. **Accounts are auto-discovered.** On first launch, Agents Monitor checks `~/.claude` and any
-   `~/.claude-*` directory for a matching keychain entry and adds every one it finds as a local
-   account, named from that profile's email/org in its `.claude.json`. If you use Claude Code
-   with only one profile, you'll see exactly one account card. Nothing is added if it can't find
-   a matching keychain entry — check [Troubleshooting](USER-GUIDE.md#troubleshooting) if you
-   expected an account that didn't show up.
+2. **Accounts are auto-discovered.** Agents Monitor checks `~/.claude` and any `~/.claude-*`
+   directory for a matching keychain entry, and `~/.codex` and any `~/.codex-*` directory for a
+   readable `auth.json`, adding every one it finds — named from that profile's email/org in its
+   `.claude.json`, or from the signed-in address in the stored Codex token. If you use one
+   profile of one agent, you'll see exactly one account card. Nothing is added for a directory
+   without usable credentials — check
+   [Troubleshooting](USER-GUIDE.md#troubleshooting) if you expected an account that didn't show
+   up. Each provider is scanned once, so upgrading picks up a newly supported one without
+   re-adding accounts you've since removed.
 3. **Notification permission.** macOS will prompt to allow notifications. Click **Allow** if
    you want desktop alerts — without it, desktop notifications are silently dropped (ntfy and
    toast alerts still work regardless of this permission).
@@ -96,8 +99,8 @@ rm -rf /Applications/AgentsMonitor.app
 Also remove it from **System Settings → General → Login Items** if you enabled "Start at
 login" and it's still listed there.
 
-To forget all settings and accounts (optional — this does not touch your actual Claude Code
-login, only Agents Monitor's own state):
+To forget all settings and accounts (optional — this does not touch your actual Claude Code or
+Codex login, only Agents Monitor's own state):
 
 ```bash
 defaults delete com.roy.agentsmonitor
@@ -115,5 +118,6 @@ security dump-keychain 2>/dev/null | grep -A1 'AgentsMonitor-account-' | grep '"
 security delete-generic-password -s "AgentsMonitor-account-<uuid>"
 ```
 
-Uninstalling never touches any `Claude Code-credentials*` keychain item — those belong to
-Claude Code, not to this app, and Agents Monitor only ever reads them.
+Uninstalling never touches any `Claude Code-credentials*` keychain item or any
+`<CODEX_HOME>/auth.json` — those belong to Claude Code and Codex, not to this app, and Agents
+Monitor only ever reads them.

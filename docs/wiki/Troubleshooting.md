@@ -9,7 +9,8 @@ Back to [[Home]]. See also: [[User-Guide]], [[Architecture]].
 | Waiting for first refresh… | No poll has completed yet for this account | Wait, or click Refresh |
 | Not logged in | No matching keychain entry for this account's config dir | Log in to Claude Code for that profile, or remove the account |
 | Keychain access denied | A read hit a real consent failure (rare — see [[Architecture#keychain-access]]); 30-minute negative cache | Usually clears on its own; check Keychain Access if it doesn't |
-| Login token expired | Local account, two consecutive 401s | Open a Claude Code session for that profile; `/login` only if that alone doesn't fix it |
+| Login token expired | Local Claude account, two consecutive 401s | Open a Claude Code session for that profile; `/login` only if that alone doesn't fix it |
+| Login token expired (Codex) | Codex account, two consecutive 401s | Run `codex` in that profile to rewrite `auth.json`; `codex login` only if that alone doesn't fix it |
 | Credentials expired (+ Paste credentials…) | Remote account's refresh grant failed, almost always the [[#rotation-race]] | Re-paste fresh credentials from the source machine |
 | Rate limited until HH:MM | 429 from the usage endpoint; backoff 3→6→12→15 min, resets on success | Nothing to do — recovers on its own |
 | Last refresh failed: … | Stale-but-displayed: last poll failed, previous good snapshot still shown | Check the error text; usually transient network |

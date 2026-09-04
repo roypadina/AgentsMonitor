@@ -33,8 +33,13 @@ on first launch. Tokens are read fresh from the keychain every poll and **never 
 this app** — see [[Architecture#token-policy]] for why that rule exists and what would break if
 it didn't.
 
-**Remote** — an account living on another machine. Add it from Settings → Accounts → *Add
-Remote Account…*, pasting the credentials JSON:
+**Codex** — a `CODEX_HOME` signed in to Codex with a ChatGPT account. Auto-discovered from
+`~/.codex*`, credentials read from `auth.json` rather than the keychain, and never refreshed for
+the same reason as a local Claude account. Reports Session and Week; no spend row, because the
+Codex payload gives a remaining balance rather than an amount spent.
+
+**Remote** — Claude-only: an account living on another machine. Add it from Settings → Accounts
+→ *Add Remote Account…*, pasting the credentials JSON:
 
 ```bash
 security find-generic-password -s "Claude Code-credentials" -w    # macOS source machine
@@ -70,7 +75,7 @@ priority 3/4), **Toast** panel (global on/off, not per-account).
 
 | Tab | Options |
 |---|---|
-| Accounts | Add Local/Remote, rename, per-account Desktop/ntfy toggles + topic override, remove, Repaste for expired remote credentials |
+| Accounts | Add Claude/Codex/Remote, rename, per-account Desktop/ntfy toggles + topic override, remove, Repaste for expired remote credentials |
 | Alerts | Warning/critical thresholds, ntfy server + default topic, notification authorization status, Send Test Alert |
 | General | Poll interval (30s–10m), Start at login (self-healing), show-percent toggle, toast on/off, sound on/off |
 

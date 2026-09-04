@@ -6,6 +6,7 @@
 - [Popover](#popover)
 - [Accounts](#accounts)
   - [Local accounts](#local-accounts)
+  - [Codex accounts](#codex-accounts)
   - [Remote accounts](#remote-accounts)
 - [Alerts](#alerts)
   - [How a level is decided](#how-a-level-is-decided)
@@ -69,7 +70,7 @@ A local account is any `CLAUDE_CONFIG_DIR` that's already logged in to Claude Co
 
 - **Discovery is automatic on first launch:** Agents Monitor checks `~/.claude` and globs
   `~/.claude-*`, adding every directory that has a matching keychain entry. You can add more
-  later from Settings → Accounts → **Add Local Account…** (folder picker).
+  later from Settings → Accounts → **Add Claude Account…** (folder picker).
 - **Naming:** taken from `oauthAccount.emailAddress` (or `organizationName`) in that profile's
   `~/.claude*/.claude.json`. If no label is found, it falls back to the directory name. Rename
   any account from Settings or from the popover.
@@ -82,9 +83,32 @@ A local account is any `CLAUDE_CONFIG_DIR` that's already logged in to Claude Co
   card shows **"Login token expired"** — open a Claude Code session for that profile (running
   any command re-triggers its own refresh) rather than `/login`ing unless that doesn't fix it.
 
+### Codex accounts
+
+A Codex account is any `CODEX_HOME` signed in to Codex with a ChatGPT account — `~/.codex` by
+default, or `~/.codex-<name>` for an additional profile.
+
+- **Discovery is automatic:** every `~/.codex*` directory holding an `auth.json` with a readable
+  ChatGPT token becomes an account. Add a non-standard location later from Settings → Accounts →
+  **Add Codex Account…** (folder picker). A login that only has an API key in it (`auth_mode:
+  apikey`) is skipped — there's no plan usage behind it to report.
+- **Naming:** the signed-in address, read from the claims of the stored `id_token`. Falls back to
+  the directory name, and renameable like any other account.
+- **Credentials come from a file, not the keychain.** `<CODEX_HOME>/auth.json` is read fresh on
+  every poll, and **the token is never refreshed by this app** — same rule as a local Claude
+  account, same reason: OpenAI rotates the refresh token on use, so spending it would force
+  `codex login`. Running `codex` in that profile occasionally keeps it fresh on its own.
+- **What's shown:** the rolling 5-hour window as **Session** and the weekly one as **Week**,
+  plus the code-review cap if your plan reports one. There's no spend row: the Codex payload
+  reports a remaining credit balance rather than an amount spent, so there is nothing honest to
+  put there. OpenAI also sends no severity per window, so the green/orange/red grading is
+  applied locally at the same cutoffs Anthropic returns — the two providers' rows mean the same
+  thing side by side.
+
 ### Remote accounts
 
-A remote account is one that isn't logged in to Claude Code on this Mac at all — typically
+Remote accounts are Claude-only. A remote account is one that isn't logged in to Claude Code on
+this Mac at all — typically
 another machine, or a CI box. Agents Monitor owns its credentials entirely: it stores them in
 its own keychain item and refreshes the token itself when it expires.
 
@@ -179,7 +203,8 @@ Each toggled per account in Settings → Accounts:
 Three tabs, all changes persisted immediately.
 
 **Accounts** — the full account list: rename, per-account **Desktop** and **ntfy** toggles, a
-per-account ntfy topic override, remove, plus **Add Local Account…** (folder picker validated
+per-account ntfy topic override, remove, plus **Add Claude Account…** / **Add Codex Account…**
+(folder pickers validated
 against a real keychain entry) and **Add Remote Account…** (paste sheet). A remote account
 showing "Credentials expired" gets a **Repaste…** button right on its row.
 
@@ -231,7 +256,8 @@ for the public server.
 | **Waiting for first refresh…** | App just launched or account just added; no poll has completed yet. | Wait for the poll interval, or click **Refresh**. |
 | **Not logged in** | No matching keychain entry for this account's config dir. | Log in to Claude Code for that profile (`claude` then `/login`), or remove the account if it's stale. |
 | **Keychain access denied** | A keychain read for this account hit a real consent failure, not the usual silent CLI fallback. Negative-cached for 30 minutes so it won't hammer the prompt. | Usually resolves on its own after the cache expires; if it persists, check Keychain Access for a "Claude Code-credentials…" item with a broken ACL. |
-| **Login token expired — open a Claude Code session for this profile** | Local account, two consecutive 401s (not the usual single rotation blip). | Open a terminal, run `claude` for that `CLAUDE_CONFIG_DIR`, let it refresh normally. Only run `/login` if that alone doesn't clear it. |
+| **Login token expired — open a Claude Code session for this profile** | Local Claude account, two consecutive 401s (not the usual single rotation blip). | Open a terminal, run `claude` for that `CLAUDE_CONFIG_DIR`, let it refresh normally. Only run `/login` if that alone doesn't clear it. |
+| **Login token expired — run codex in this profile** | Codex account, two consecutive 401s. | Run `codex` with that `CODEX_HOME`, which rewrites `auth.json` with a fresh token. Only run `codex login` if that alone doesn't clear it. |
 | **Credentials expired** (remote account, with a **Paste credentials…** button) | The refresh grant failed — most often the source machine rotated the same lineage first (the rotation race, see [Remote accounts](#remote-accounts)). | Click **Paste credentials…**, re-copy the JSON from the source machine, save. |
 | **Rate limited until HH:MM** | The usage endpoint returned 429 for this account. Backoff walks 3 → 6 → 12 → 15 minutes and holds; any successful poll resets it. | Nothing to do — it recovers on its own. Persisting past ~15 minutes on every account suggests you're hitting a shared-bucket throttle; check you're not also running another heavy poller against the same token. |
 | **Last refresh failed: …** (below otherwise-normal rows) | The last poll failed but a previous good snapshot is still shown (stale-but-displayed). | Check the error text; if it's a transport error, confirm you have network connectivity. |

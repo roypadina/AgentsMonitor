@@ -50,8 +50,8 @@ Allow" — to reset each time. See [[Architecture#why-no-notarization]] for the 
 
 - No Dock icon — it's a menu-bar-only app. Look for the gauge icon.
 - Accounts are **auto-discovered**: every `~/.claude` / `~/.claude-*` directory with a matching
-  keychain entry becomes a local account automatically. See [[User-Guide#accounts]] for how
-  naming and remote accounts work.
+  keychain entry, and every `~/.codex*` directory with a readable `auth.json`, becomes an account
+  automatically. See [[User-Guide#accounts]] for how naming, Codex and remote accounts work.
 - macOS prompts for **notification permission** — click **Allow** if you want desktop alerts.
   ntfy and toast alerts work either way.
 - Polling starts immediately at the default 180-second interval.
