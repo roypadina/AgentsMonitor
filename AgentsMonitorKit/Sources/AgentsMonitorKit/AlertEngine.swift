@@ -20,7 +20,7 @@ public enum AlertLevel: Int, Comparable, Codable, Sendable {
 public struct Alert: Equatable, Sendable {
     public let accountId: UUID
     public let accountName: String
-    public let key: String        // LimitInfo.id, or "auth"
+    public let key: String        // LimitInfo.id
     public let title: String
     public let body: String
     public let level: AlertLevel
@@ -70,11 +70,6 @@ public struct AlertEngine {
     }
     private var memory: [String: MemoryEntry] = [:]
 
-    /// Consecutive auth-failure polls per account. Deliberately NOT persisted — a single 401 is
-    /// usually Claude Code rotating its token mid-poll (observed live 2026-08-11), so the alert
-    /// only fires on the second consecutive strike.
-    private var authStrikes: [String: Int] = [:]
-
     private static let log = Logger(subsystem: "com.roy.agentsmonitor", category: "alerts")
 
     public init(thresholds: AlertThresholds = .init()) {
@@ -103,27 +98,18 @@ public struct AlertEngine {
             if let burst = evaluateSpendBurst(account: account, spend: snapshot.spend, now: now) {
                 alerts.append(burst)
             }
-            clearAuthEntry(accountId: account.id)
             return alerts
 
-        case .needsReauth:
-            return authAlert(account: account,
-                              title: "Login token expired",
-                              body: "\(account.name)'s token keeps failing — \(account.provider.reauthHint).")
-
-        case .needsCredentialsRepaste:
-            return authAlert(account: account,
-                              title: "Credentials expired",
-                              body: "\(account.name)'s remote credentials could not be refreshed — paste fresh ones.")
-
-        case .idle, .notLoggedIn, .keychainDenied, .rateLimited, .failed:
+        // Auth states never notify: in practice they were false alarms (token rotation, a poll
+        // racing the CLI) while the CLI kept working. The popover still shows the status line.
+        case .needsReauth, .needsCredentialsRepaste,
+             .idle, .notLoggedIn, .keychainDenied, .rateLimited, .failed:
             return []
         }
     }
 
     public mutating func reset() {
         memory.removeAll()
-        authStrikes.removeAll()
     }
 
     private mutating func evaluateLimit(account: Account, limit: LimitInfo) -> Alert? {
@@ -186,26 +172,6 @@ public struct AlertEngine {
         case (let a?, let b?): return abs(a.timeIntervalSince(b)) < windowTolerance
         default: return false
         }
-    }
-
-    private mutating func authAlert(account: Account, title: String, body: String) -> [Alert] {
-        let memKey = "\(account.id)|auth"
-        let strikes = (authStrikes[memKey] ?? 0) + 1
-        authStrikes[memKey] = strikes
-        guard strikes >= 2 else {
-            Self.log.info("auth strike 1 for \(account.name, privacy: .public) — debouncing (likely token rotation)")
-            return []
-        }
-        let stored = memory[memKey]
-        let shouldFire = AlertLevel.critical > (stored?.level ?? .none)
-        memory[memKey] = MemoryEntry(level: .critical, window: nil)
-        guard shouldFire else { return [] }
-        return [Alert(accountId: account.id, accountName: account.name, key: "auth", title: title, body: body, level: .critical)]
-    }
-
-    private mutating func clearAuthEntry(accountId: UUID) {
-        memory["\(accountId)|auth"] = nil
-        authStrikes["\(accountId)|auth"] = nil
     }
 
     private static func severityLevel(_ severity: Severity) -> AlertLevel {

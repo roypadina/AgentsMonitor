@@ -182,17 +182,15 @@ final class AlertEngineTests: XCTestCase {
         XCTAssertEqual(fresh.evaluate(account: acct, state: snapshot(percent: 97, severity: .critical, resetsAt: window)).count, 1)
     }
 
-    func testAuthAlertDebouncesOneStrikeFiresOnSecond() {
+    func testAuthStatesNeverAlert() {
         var engine = AlertEngine()
         let acct = account()
 
-        // Single 401 poll = probably token rotation — no alert. Second consecutive = real.
-        XCTAssertEqual(engine.evaluate(account: acct, state: .needsReauth).count, 0, "first strike debounced")
-        XCTAssertEqual(engine.evaluate(account: acct, state: .needsReauth).count, 1, "second strike fires")
-        XCTAssertEqual(engine.evaluate(account: acct, state: .needsReauth).count, 0, "then de-duped")
-        _ = engine.evaluate(account: acct, state: snapshot(percent: 10, severity: .normal, resetsAt: Date()))
-        XCTAssertEqual(engine.evaluate(account: acct, state: .needsReauth).count, 0, "recovery resets strikes — first strike silent again")
-        XCTAssertEqual(engine.evaluate(account: acct, state: .needsReauth).count, 1, "re-fires on second strike after recovery")
+        // Auth failures are shown in the popover only — they were false alarms as notifications.
+        for _ in 0..<5 {
+            XCTAssertEqual(engine.evaluate(account: acct, state: .needsReauth).count, 0)
+            XCTAssertEqual(engine.evaluate(account: acct, state: .needsCredentialsRepaste).count, 0)
+        }
     }
 
     private func spendState(usedMinor: Int, limitMinor: Int? = 80_000) -> AccountState {
@@ -247,17 +245,6 @@ final class AlertEngineTests: XCTestCase {
         off.extraUsageAlerts = false
         _ = off.evaluate(account: acct, state: spendState(usedMinor: 100), now: t0)
         XCTAssertEqual(burstAlerts(off.evaluate(account: acct, state: spendState(usedMinor: 5_000), now: t0.addingTimeInterval(60))).count, 0)
-    }
-
-    func testNeedsCredentialsRepasteFiresOnceUnderAuthKey() {
-        var engine = AlertEngine()
-        let acct = account()
-
-        XCTAssertEqual(engine.evaluate(account: acct, state: .needsCredentialsRepaste).count, 0, "first strike debounced")
-        let second = engine.evaluate(account: acct, state: .needsCredentialsRepaste)
-        XCTAssertEqual(second.count, 1)
-        XCTAssertEqual(second.first?.key, "auth")
-        XCTAssertEqual(engine.evaluate(account: acct, state: .needsCredentialsRepaste).count, 0, "then de-duped")
     }
 
     func testApiCriticalOverridesLowPercentThreshold() {
