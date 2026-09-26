@@ -867,3 +867,48 @@ final class ProviderPresentationTests: XCTestCase {
         XCTAssertTrue(settings.providerColors)
     }
 }
+
+// MARK: - Shared usage cache
+
+final class SharedUsageCacheTests: XCTestCase {
+    typealias C = SharedUsageCache
+    let now = Date(timeIntervalSince1970: 1_000_000)
+
+    func testFileNameMatchesClaudeUsageScript() {
+        let dir = URL(fileURLWithPath: "/tmp/x")
+        XCTAssertEqual(C.file(configDir: "/Users/r/.claude-work2/", in: dir).lastPathComponent, ".claude-work2.usage.json")
+        XCTAssertEqual(C.file(configDir: "/Users/r/.claude", in: dir).lastPathComponent, ".claude.usage.json")
+    }
+
+    func testFreshBodyIsReusedStaleBodyRefetched() {
+        let t = now.timeIntervalSince1970
+        XCTAssertEqual(C.decide(.init(fetched_at: t - 60, body: "B", throttled_until: 0), now: now), .use("B"))
+        XCTAssertEqual(C.decide(.init(fetched_at: t - 200, body: "B", throttled_until: 0), now: now), .fetch)
+        XCTAssertEqual(C.decide(nil, now: now), .fetch)
+    }
+
+    func testThrottleParksEveryReader() {
+        let t = now.timeIntervalSince1970
+        XCTAssertEqual(C.decide(.init(fetched_at: t - 5000, body: "B", throttled_until: t + 10), now: now), .use("B"))
+        XCTAssertEqual(C.decide(.init(fetched_at: nil, body: nil, throttled_until: t + 10), now: now), .throttled)
+        XCTAssertEqual(C.decide(.init(fetched_at: nil, body: nil, throttled_until: t - 1), now: now), .fetch)
+    }
+
+    func testRoundTripAndLock() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let url = C.file(configDir: "/x/.claude3", in: dir)
+        let entry = C.Entry(fetched_at: 1, body: "{}", throttled_until: 2)
+        C.write(entry, to: url)
+        XCTAssertEqual(C.read(url), entry)
+        // The Python side reads this file too: keys must stay snake_case.
+        let keys = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: url)) as? [String: Any]).keys
+        XCTAssertEqual(Set(keys), ["fetched_at", "body", "throttled_until"])
+        XCTAssertTrue(C.tryLock(url))
+        XCTAssertFalse(C.tryLock(url))
+        XCTAssertTrue(C.tryLock(url, now: Date().addingTimeInterval(60)))   // stale lock is broken
+        C.unlock(url)
+        XCTAssertTrue(C.tryLock(url))
+        C.unlock(url)
+    }
+}

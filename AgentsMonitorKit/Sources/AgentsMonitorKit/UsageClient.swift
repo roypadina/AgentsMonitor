@@ -15,7 +15,27 @@ public struct UsageClient: Sendable {
         self.session = session
     }
 
-    public func fetch(accessToken: String) async throws -> UsageSnapshot {
+    /// `sharedFile` (local accounts): go through `SharedUsageCache` so this app and any other
+    /// local poller of the same account make one request per window between them.
+    public func fetch(accessToken: String, sharedFile: URL? = nil) async throws -> UsageSnapshot {
+        guard let sharedFile else { return try await fetchNetwork(accessToken: accessToken, sharedFile: nil) }
+        for _ in 0..<20 {   // up to ~10s while another reader's request is in flight
+            switch SharedUsageCache.decide(SharedUsageCache.read(sharedFile)) {
+            case .use(let body): return try Self.decode(Data(body.utf8))
+            case .throttled: throw UsageError.rateLimited
+            case .fetch:
+                guard SharedUsageCache.tryLock(sharedFile) else {
+                    try await Task.sleep(nanoseconds: 500_000_000)
+                    continue
+                }
+                defer { SharedUsageCache.unlock(sharedFile) }
+                return try await fetchNetwork(accessToken: accessToken, sharedFile: sharedFile)
+            }
+        }
+        throw UsageError.rateLimited
+    }
+
+    private func fetchNetwork(accessToken: String, sharedFile: URL?) async throws -> UsageSnapshot {
         var request = URLRequest(url: Self.endpoint)
         request.httpMethod = "GET"
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
@@ -43,12 +63,27 @@ public struct UsageClient: Sendable {
             throw UsageError.unauthorized   // no retry-storm
         case 429:
             Self.log.error("usage endpoint 429 rate-limited")
+            if let sharedFile {
+                var entry = SharedUsageCache.read(sharedFile) ?? .init()
+                let retry = http.value(forHTTPHeaderField: "Retry-After").flatMap(TimeInterval.init)
+                entry.throttled_until = Date().timeIntervalSince1970 + (retry ?? SharedUsageCache.defaultRetryAfter)
+                SharedUsageCache.write(entry, to: sharedFile)
+            }
             throw UsageError.rateLimited     // feeds the backoff ladder
         default:
             Self.log.error("usage endpoint HTTP \(http.statusCode)")
             throw UsageError.http(http.statusCode)
         }
 
+        let snapshot = try Self.decode(data)
+        if let sharedFile, let body = String(data: data, encoding: .utf8) {
+            SharedUsageCache.write(.init(fetched_at: Date().timeIntervalSince1970, body: body, throttled_until: 0),
+                                   to: sharedFile)
+        }
+        return snapshot
+    }
+
+    private static func decode(_ data: Data) throws -> UsageSnapshot {
         do {
             return try UsageSnapshot.decode(data)
         } catch {

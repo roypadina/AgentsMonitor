@@ -421,7 +421,11 @@ public final class AppStore {
         let fetchUsage: (String) async throws -> UsageSnapshot = { token in
             switch account.provider {
             case .claude:
-                return try await usageClient.fetch(accessToken: token)
+                guard case .local(let configDirPath) = account.kind else {
+                    return try await usageClient.fetch(accessToken: token)
+                }
+                return try await usageClient.fetch(accessToken: token,
+                                                   sharedFile: SharedUsageCache.file(configDir: configDirPath))
             case .codex:
                 guard case .local(let configDirPath) = account.kind else {
                     throw CredentialError.notFound
