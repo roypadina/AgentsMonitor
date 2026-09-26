@@ -27,6 +27,15 @@ public enum KeychainService {
         return "Claude Code-credentials-\(sha256HexPrefix(normalized, length: 8))"
     }
 
+    /// Every item Claude Code may have written for `path`. `~/.claude` is reachable both with
+    /// `CLAUDE_CONFIG_DIR` unset (unsuffixed) and set explicitly (hashed, e.g. `f3e2a4de`), and
+    /// the CLI only refreshes the one it currently uses, so the other goes stale silently.
+    public static func serviceNames(forConfigDir path: String, home: String = NSHomeDirectory()) -> [String] {
+        let hashed = "Claude Code-credentials-\(sha256HexPrefix(normalizePath(path), length: 8))"
+        let primary = serviceName(forConfigDir: path, home: home)
+        return primary == hashed ? [hashed] : [hashed, primary]
+    }
+
     /// Source of truth for which accounts exist — finds entries whose config dir is gone.
     /// `SecItemCopyMatching` only, `kSecReturnData: false` — a silent existence probe that
     /// never fires the keychain consent prompt.

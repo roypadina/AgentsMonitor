@@ -52,10 +52,20 @@ public actor CredentialStore {
             if let until = negativeCacheUntil[account.id], until > Date() {
                 throw CredentialError.denied
             }
-            let service = KeychainService.serviceName(forConfigDir: configDirPath)
             do {
-                let data = try KeychainService.readPayload(service: service)
+                var payloads: [Data] = []
+                for service in KeychainService.serviceNames(forConfigDir: configDirPath) {
+                    do { payloads.append(try KeychainService.readPayload(service: service)) }
+                    catch CredentialError.notFound { continue }
+                }
+                guard let data = Self.freshest(payloads) else { throw CredentialError.notFound }
                 guard let token = Self.accessToken(from: data) else { throw CredentialError.badPayload }
+                // Never send a token we know is dead: the endpoint answers expired tokens with
+                // 429 (not 401), which reads as "throttled" forever instead of "log in again".
+                if let raw = Self.rawExpiresAt(from: data),
+                   Date().timeIntervalSince1970 >= Self.expiresAtSeconds(rawExpiresAt: raw) {
+                    throw UsageError.unauthorized
+                }
                 return token
             } catch CredentialError.denied {
                 Self.log.error("keychain denied for \(account.name, privacy: .public) — negative-caching 30m")
@@ -150,6 +160,11 @@ public actor CredentialStore {
     /// and returns seconds-since-epoch.
     static func expiresAtSeconds(rawExpiresAt: Double) -> Double {
         rawExpiresAt > 1e12 ? rawExpiresAt / 1000 : rawExpiresAt
+    }
+
+    /// The payload that expires last — the one the CLI is actually keeping fresh.
+    static func freshest(_ payloads: [Data]) -> Data? {
+        payloads.max { (rawExpiresAt(from: $0) ?? 0) < (rawExpiresAt(from: $1) ?? 0) }
     }
 
     /// Merges a refresh response into the existing `claudeAiOauth` payload, preserving every

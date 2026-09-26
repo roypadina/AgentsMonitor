@@ -110,6 +110,27 @@ final class DerivationTests: XCTestCase {
             KeychainService.serviceName(forConfigDir: "/Users/roypadina/.claude/", home: "/Users/roypadina"),
             "Claude Code-credentials")
     }
+
+    func testDefaultDirChecksHashedAndUnsuffixedItems() {
+        // Verified live 2026-09-26: CLAUDE_CONFIG_DIR=~/.claude writes "...-f3e2a4de" and
+        // leaves the unsuffixed item to expire.
+        XCTAssertEqual(
+            KeychainService.serviceNames(forConfigDir: "/Users/roypadina/.claude", home: "/Users/roypadina"),
+            ["Claude Code-credentials-f3e2a4de", "Claude Code-credentials"])
+        XCTAssertEqual(
+            KeychainService.serviceNames(forConfigDir: "/Users/roypadina/.claude-work2", home: "/Users/roypadina"),
+            ["Claude Code-credentials-e5af6df1"])
+    }
+
+    func testFreshestPayloadWins() {
+        func payload(_ expiresAt: Int64) -> Data {
+            Data(#"{"claudeAiOauth":{"accessToken":"t\#(expiresAt)","expiresAt":\#(expiresAt)}}"#.utf8)
+        }
+        let stale = payload(1_758_000_000_000), live = payload(1_759_000_000_000)
+        XCTAssertEqual(CredentialStore.freshest([stale, live]), live)
+        XCTAssertEqual(CredentialStore.freshest([live, stale]), live)
+        XCTAssertNil(CredentialStore.freshest([]))
+    }
 }
 
 // MARK: - 4. AlertEngine
