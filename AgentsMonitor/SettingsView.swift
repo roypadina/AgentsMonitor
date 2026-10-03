@@ -13,8 +13,55 @@ struct SettingsView: View {
                 .tabItem { Label("Alerts", systemImage: "bell") }
             GeneralTab()
                 .tabItem { Label("General", systemImage: "gearshape") }
+            AboutTab()
+                .tabItem { Label("About", systemImage: "info.circle") }
         }
         .frame(width: 460, height: 420)
+    }
+}
+
+// MARK: - About tab
+
+enum AboutInfo {
+    static let kofi = URL(string: "https://ko-fi.com/roypadina")!
+    static let github = URL(string: "https://github.com/roypadina/AgentsMonitor")!
+    static let headline = "Made by Roy Padina"
+    static let blurb = "I'm a software engineer from Israel who builds small, focused Mac tools to fix the little annoyances in my own day — then shares them free and open source."
+    static let ask = "If this app saves you time, a coffee on Ko-fi keeps the next one coming. ☕"
+    static var version: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
+    }
+
+    /// Standard About panel; accessory (LSUIElement) apps must activate first.
+    @MainActor static func showPanel() {
+        let credits = NSMutableAttributedString(
+            string: "\(headline)\n\n\(blurb)\n\n\(ask)\n",
+            attributes: [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: NSColor.labelColor])
+        credits.append(NSAttributedString(string: "Support on Ko-fi ☕", attributes: [.link: kofi, .font: NSFont.systemFont(ofSize: 11)]))
+        NSApp.activate(ignoringOtherApps: true)
+        NSApp.orderFrontStandardAboutPanel(options: [.credits: credits])
+    }
+}
+
+private struct AboutTab: View {
+    var body: some View {
+        VStack(spacing: 10) {
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable().frame(width: 64, height: 64)
+            Text("Agents Monitor").font(.title2.bold())
+            Text("Version \(AboutInfo.version)").font(.caption).foregroundStyle(.secondary)
+            Text(AboutInfo.headline).font(.headline).padding(.top, 4)
+            Text(AboutInfo.blurb).multilineTextAlignment(.center)
+            Text(AboutInfo.ask).multilineTextAlignment(.center)
+            HStack {
+                Button { NSWorkspace.shared.open(AboutInfo.kofi) } label: { Text("Support on Ko-fi ☕") }
+                    .buttonStyle(.borderedProminent)
+                Button("GitHub") { NSWorkspace.shared.open(AboutInfo.github) }
+            }
+            .padding(.top, 4)
+        }
+        .padding(20)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
 

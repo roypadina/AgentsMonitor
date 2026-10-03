@@ -14,6 +14,7 @@ from under you.
 [![Swift](https://img.shields.io/badge/Swift-5.9-F05138?logo=swift&logoColor=white)](https://swift.org)
 [![Homebrew](https://img.shields.io/badge/brew-roypadina%2Ftap-FBB040?logo=homebrew&logoColor=white)](https://github.com/roypadina/homebrew-tap)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?logo=opensourceinitiative&logoColor=white)](LICENSE)
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-support-F16061?logo=ko-fi&logoColor=white)](https://ko-fi.com/roypadina)
 
 <br>
 
@@ -215,7 +216,15 @@ every request (±1–2s observed) — exact comparison caused an alert on every 
   vendor endpoints — both are why. See [Is it safe?](docs/USER-GUIDE.md#is-it-safe) in the
   user guide.
 
+## Support
+
+If Agents Monitor saves you from hitting a usage limit by surprise, you can support its development — it's optional and always appreciated.
+
+[![Support me on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/roypadina)
+
+A ⭐ on the repo helps just as much.
+
 ## License
 
 [MIT](LICENSE) © 2026 Roy Padina — see [LICENSE](LICENSE) for the vendored-code attribution to
-CCSeva and Claude-Usage-Tracker.
+CCSeva and Claude-Usage-Tracker · [Support on Ko-fi ☕](https://ko-fi.com/roypadina)
