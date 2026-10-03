@@ -16,7 +16,7 @@ picks up new releases later.
 
 ## Manual install
 
-1. Download the latest `AgentsMonitor.app.zip` from the
+1. Download the latest `AgentsMonitor.zip` from the
    [Releases page](https://github.com/roypadina/AgentsMonitor/releases).
 2. Unzip it and drag `AgentsMonitor.app` into `/Applications`.
 3. Launch it from Applications or Spotlight.

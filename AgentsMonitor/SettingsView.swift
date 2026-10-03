@@ -25,24 +25,80 @@ struct SettingsView: View {
 enum AboutInfo {
     static let kofi = URL(string: "https://ko-fi.com/roypadina")!
     static let github = URL(string: "https://github.com/roypadina/AgentsMonitor")!
-    static let headline = "Made by Roy Padina"
-    static let blurb = "I'm a software engineer from Israel who builds small, focused Mac tools to fix the little annoyances in my own day — then shares them free and open source."
-    static let ask = "If this app saves you time, a coffee on Ko-fi keeps the next one coming. ☕"
     static var version: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""
     }
+    static var build: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? ""
+    }
 
-    /// Standard About panel; accessory (LSUIElement) apps must activate first.
-    @MainActor static func showPanel() {
-        let credits = NSMutableAttributedString(
-            string: "\(headline)\n\n\(blurb)\n\n\(ask)\n",
-            attributes: [.font: NSFont.systemFont(ofSize: 11), .foregroundColor: NSColor.labelColor])
-        credits.append(NSAttributedString(string: "Support on Ko-fi ☕", attributes: [.link: kofi, .font: NSFont.systemFont(ofSize: 11)]))
+    private static var window: NSWindow?
+
+    /// Custom window (the standard panel's fixed-height credits box clipped the text).
+    /// Accessory (LSUIElement) apps must activate first.
+    @MainActor static func showWindow() {
+        if window == nil {
+            let w = NSWindow(contentViewController: NSHostingController(rootView: AboutView()))
+            w.title = "About Agents Monitor"
+            w.styleMask = [.titled, .closable]
+            w.isReleasedWhenClosed = false
+            w.center()
+            window = w
+        }
         NSApp.activate(ignoringOtherApps: true)
-        NSApp.orderFrontStandardAboutPanel(options: [.credits: credits])
+        window?.makeKeyAndOrderFront(nil)
     }
 }
 
+private struct AboutView: View {
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(nsImage: NSApp.applicationIconImage)
+                .resizable()
+                .frame(width: 96, height: 96)
+
+            VStack(spacing: 2) {
+                Text("Agents Monitor").font(.title.bold())
+                Text("Version \(AboutInfo.version) (\(AboutInfo.build))")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+
+            VStack(spacing: 8) {
+                Text("Made by Roy Padina").font(.headline)
+                Text("I'm a software engineer from Israel who builds small, focused Mac tools to fix the little annoyances in my own day — then shares them free and open source.")
+                Text("If this app saves you time, a coffee on Ko-fi keeps the next one coming. ☕")
+            }
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+
+            HStack {
+                Link(destination: AboutInfo.kofi) {
+                    Text("Support on Ko-fi ☕").frame(minWidth: 140)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.large)
+
+                Link(destination: AboutInfo.github) {
+                    Text("GitHub").frame(minWidth: 70)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.large)
+            }
+
+            Link("Report an issue", destination: AboutInfo.github.appendingPathComponent("issues"))
+                .font(.callout)
+
+            Text("© Roy Padina · MIT")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+        .padding(24)
+        .frame(width: 380)
+    }
+}
+
+/// Settings tab is a fixed 460x420 frame, so keep it compact and defer to the About window.
 private struct AboutTab: View {
     var body: some View {
         VStack(spacing: 10) {
@@ -50,14 +106,12 @@ private struct AboutTab: View {
                 .resizable().frame(width: 64, height: 64)
             Text("Agents Monitor").font(.title2.bold())
             Text("Version \(AboutInfo.version)").font(.caption).foregroundStyle(.secondary)
-            Text(AboutInfo.headline).font(.headline).padding(.top, 4)
-            Text(AboutInfo.blurb).multilineTextAlignment(.center)
-            Text(AboutInfo.ask).multilineTextAlignment(.center)
             HStack {
-                Button { NSWorkspace.shared.open(AboutInfo.kofi) } label: { Text("Support on Ko-fi ☕") }
+                Button("About Agents Monitor…") { AboutInfo.showWindow() }
+                Link("Support on Ko-fi ☕", destination: AboutInfo.kofi)
                     .buttonStyle(.borderedProminent)
-                Button("GitHub") { NSWorkspace.shared.open(AboutInfo.github) }
             }
+            .controlSize(.large)
             .padding(.top, 4)
         }
         .padding(20)

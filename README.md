@@ -123,7 +123,7 @@ brew install --cask agents-monitor
 
 ### Manual install
 
-Download the latest `AgentsMonitor.app.zip` from
+Download the latest `AgentsMonitor.zip` from
 [Releases](https://github.com/roypadina/AgentsMonitor/releases), unzip, and drag
 `AgentsMonitor.app` into `/Applications`.
 
