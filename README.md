@@ -161,7 +161,7 @@ prompt. Codex keeps its credentials in a file instead, so that path needs none o
 - [docs/INSTALL.md](docs/INSTALL.md) — install, first run, updating, uninstall
 - [docs/USER-GUIDE.md](docs/USER-GUIDE.md) — every screen, every setting, ntfy setup from
   scratch, alert semantics, troubleshooting
-- [Wiki](docs/wiki/Home.md) — architecture, design rationale, expanded FAQ
+- [Wiki](https://github.com/roypadina/AgentsMonitor/wiki) — accounts, alerts, how it works, troubleshooting, FAQ
 
 ## Build & test
 
