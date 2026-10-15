@@ -53,6 +53,11 @@ public final class AppStore {
     public var settings = Settings()
     public var lastRefresh: Date?
     public var isRefreshing = false
+    /// Recent samples per account, oldest first — what the graphs draw. The file keeps more.
+    public var history: [UUID: [UsageSample]] = [:]
+    /// ccpool switches and parks in the same span; empty when ccpool does not run here.
+    public var poolEvents: [PoolEvent] = []
+    public static let historyDays: Double = 30
     /// App assigns Notifier.deliver here — the Kit never imports AppKit/UserNotifications.
     public var onAlerts: (([Alert], Account) -> Void)?
 
@@ -65,6 +70,8 @@ public final class AppStore {
     /// Last good snapshot per account, kept so a transient failure never blanks the rows.
     private var lastSnapshot: [UUID: UsageSnapshot] = [:]
     private var pollTask: Task<Void, Never>?
+    private let usageHistory = UsageHistory()
+    private var poolEventsModified: Date?
 
     private static let accountsKey = "AgentsMonitor.accounts"
     private static let settingsKey = "AgentsMonitor.settings"
@@ -99,6 +106,41 @@ public final class AppStore {
             states[account.id] = .idle
         }
         save()
+
+        usageHistory.prune(before: Date().addingTimeInterval(-Double(UsageHistory.keepDays) * 86400))
+        history = Dictionary(grouping: usageHistory.load(since: Self.historyStart), by: \.id)
+        reloadPoolEvents()
+    }
+
+    private static var historyStart: Date { Date().addingTimeInterval(-historyDays * 86400) }
+
+    /// The log is append-only and re-read only when it changed — usually never between polls.
+    private func reloadPoolEvents() {
+        let url = PoolEvent.defaultURL
+        let modified = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date
+        guard modified != poolEventsModified else { return }
+        poolEventsModified = modified
+        poolEvents = PoolEvent.load(url: url, since: Self.historyStart)
+    }
+
+    /// The monitored account a ccpool event names, matched by config dir.
+    public func account(forPool name: String?, in event: PoolEvent) -> Account? {
+        guard let dir = event.dir(of: name) else { return nil }
+        let wanted = URL(fileURLWithPath: dir).standardizedFileURL.path
+        return accounts.first { account in
+            guard case .local(let path) = account.kind else { return false }
+            return URL(fileURLWithPath: path).standardizedFileURL.path == wanted
+        }
+    }
+
+    /// Our name for a ccpool account when it is monitored here, ccpool's otherwise.
+    public func poolName(_ name: String?, in event: PoolEvent) -> String {
+        account(forPool: name, in: event)?.name ?? name ?? "—"
+    }
+
+    /// One series per limit label ("Session", "Week", ...) for one account, oldest first.
+    public func points(for accountId: UUID, label: String) -> [(date: Date, percent: Int)] {
+        (history[accountId] ?? []).compactMap { sample in sample.p[label].map { (sample.date, $0) } }
     }
 
     /// Discovery only ever ran on first launch, so an existing install would never notice that
@@ -203,6 +245,7 @@ public final class AppStore {
             return collected
         }
 
+        var newSamples: [UsageSample] = []
         for (id, fetchedState) in results {
             guard let account = accounts.first(where: { $0.id == id }) else { continue }
 
@@ -221,7 +264,16 @@ public final class AppStore {
                 resolvedState = fetchedState
             }
 
-            if case .ok(let snapshot) = resolvedState { lastSnapshot[id] = snapshot }
+            if case .ok(let snapshot) = resolvedState {
+                lastSnapshot[id] = snapshot
+                if now.timeIntervalSince1970 - (history[id]?.last?.t ?? 0) >= UsageHistory.minGap {
+                    let sample = UsageSample(account: id, snapshot: snapshot, at: now)
+                    newSamples.append(sample)
+                    history[id, default: []].append(sample)
+                    let cutoff = Self.historyStart.timeIntervalSince1970
+                    history[id]?.removeAll { $0.t < cutoff }
+                }
+            }
             let displayState = Self.preservingSnapshot(resolvedState, last: lastSnapshot[id])
 
             let previous = states[id]
@@ -236,6 +288,9 @@ public final class AppStore {
                 onAlerts?(alerts, account)
             }
         }
+
+        usageHistory.append(newSamples)
+        reloadPoolEvents()
 
         // Persist the de-dupe memory (cheap: a few hundred bytes once per poll).
         if let snapshot = alertEngine.memorySnapshot {

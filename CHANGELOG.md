@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-10-15
+
+### Added
+- **Usage graphs:** the chart button on a card turns it over to show each limit, and spend, as a graph over the last 24 hours, 7 days or 30 days. Same card, same size; the chip in its header switches the span.
+- **Burn-rate warning:** a limit on track to run out before it resets shows "full in ~Xh at this pace" under its bar.
+- **Usage history:** every poll is saved to `~/Library/Application Support/AgentsMonitor/history.jsonl` and kept for 90 days.
+- **Account-switch markers:** when an account-pooling script (such as ccpool) writes `~/.local/state/claude-pool/events.jsonl`, its switches show as markers on the graphs (red when no account was free), and the last five appear under the cards with every account's numbers at that moment.
+
+### Changed
+- The popover is wider (420 pt), so the footer buttons no longer get cut off.
+
 ## [1.4.7] - 2026-10-03
 
 ### Changed

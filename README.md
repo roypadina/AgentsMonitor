@@ -38,6 +38,15 @@ Claude Code and the status line in Codex:
 - Severity coloring (green / orange / red) — as the API reports it for Claude, graded at the same
   cutoffs locally for Codex, which sends none — a **pacing tick** on
   each bar (where an even burn rate would put you right now), and a "resets in 2h 14m" countdown
+- **Usage graphs** — the chart button on a card turns it over: the same rows as graphs over the
+  last 24 hours, 7 days or 30 days (the chip in the card's header switches the span). Every poll
+  is kept in `~/Library/Application Support/AgentsMonitor/history.jsonl` for 90 days
+- A **"full in ~7h at this pace"** warning under any limit that will run out before it resets at
+  the current burn rate
+- **Account switches** from an account-pooling script such as ccpool, when one writes
+  `~/.local/state/claude-pool/events.jsonl`: dashed markers on the graphs (red when no account
+  was free) and the last five switches under the cards, with each account's session / week /
+  Fable numbers at that moment. No such file, nothing shown
 - A **provider badge** on every account — the agent's mark plus its name, in its own color, with
   the color also running down the leading edge of the card. Settings → General → Accounts picks
   how much shows (icon and name, icon only, name only, hidden) and whether it's colored. The
@@ -166,7 +175,7 @@ prompt. Codex keeps its credentials in a file instead, so that path needs none o
 ## Build & test
 
 ```bash
-swift test --package-path AgentsMonitorKit          # 63 unit tests (parsing for both providers, derivation, alert engine, credentials, settings, menu bar, defaults migration)
+swift test --package-path AgentsMonitorKit          # 72 unit tests (parsing for both providers, derivation, alert engine, credentials, settings, menu bar, defaults migration, usage history)
 xcodebuild -workspace AgentsMonitor.xcworkspace -scheme AgentsMonitor \
   -configuration Release -derivedDataPath build build
 cp -R build/Build/Products/Release/AgentsMonitor.app /Applications/

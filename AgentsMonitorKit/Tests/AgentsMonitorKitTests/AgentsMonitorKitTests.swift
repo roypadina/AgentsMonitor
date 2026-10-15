@@ -912,3 +912,87 @@ final class SharedUsageCacheTests: XCTestCase {
         C.unlock(url)
     }
 }
+
+// MARK: - History, ccpool events, burn rate
+
+final class HistoryTests: XCTestCase {
+    private func tempURL() -> URL {
+        FileManager.default.temporaryDirectory
+            .appendingPathComponent("am-history-\(UUID().uuidString)/history.jsonl")
+    }
+
+    private func snapshot(session: Int, week: Int, fable: Int) -> UsageSnapshot {
+        UsageSnapshot(limits: [
+            LimitInfo(kind: "session", group: "session", percent: session, severity: .normal,
+                      resetsAt: nil, modelDisplayName: nil, isActive: true),
+            LimitInfo(kind: "weekly_all", group: "weekly", percent: week, severity: .normal,
+                      resetsAt: nil, modelDisplayName: nil, isActive: true),
+            LimitInfo(kind: "weekly_scoped", group: "weekly", percent: fable, severity: .normal,
+                      resetsAt: nil, modelDisplayName: "Fable", isActive: false),
+        ], spend: nil)
+    }
+
+    func testSamplesRoundTripAndPrune() {
+        let history = UsageHistory(url: tempURL())
+        let id = UUID()
+        let old = UsageSample(account: id, snapshot: snapshot(session: 1, week: 2, fable: 3),
+                              at: Date(timeIntervalSince1970: 1_000))
+        let new = UsageSample(account: id, snapshot: snapshot(session: 24, week: 21, fable: 11),
+                              at: Date(timeIntervalSince1970: 2_000))
+        history.append([old])
+        history.append([new])
+
+        XCTAssertEqual(history.load(since: .distantPast), [old, new])
+        XCTAssertEqual(new.p, ["Session": 24, "Week": 21, "Week · Fable": 11])
+        XCTAssertEqual(history.load(since: Date(timeIntervalSince1970: 1_500)), [new])
+
+        history.prune(before: Date(timeIntervalSince1970: 1_500))
+        XCTAssertEqual(history.load(since: .distantPast), [new])
+    }
+
+    func testMissingFileLoadsEmpty() {
+        XCTAssertEqual(UsageHistory(url: tempURL()).load(since: .distantPast), [])
+        XCTAssertEqual(PoolEvent.load(url: tempURL(), since: .distantPast), [])
+    }
+
+    /// Lines exactly as ccpool writes them, plus one broken line that must be skipped.
+    func testPoolEventsDecodeCcpoolLines() throws {
+        let url = tempURL()
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let lines = """
+        {"ts": "2026-10-15T09:31:02+03:00", "event": "switch", "session": "s1", "from": "claude1", "to": "claude2", "trigger": "hard", "reason": "claude1 reached 97% (>= 97) - forcing switch", "accounts": {"claude1": {"dir": "/Users/x/.claude", "status": "ok", "session": 97.0, "week": 40.0, "fable": 11, "spend_usd": 31.51}, "claude2": {"dir": "/Users/x/.claude-work2", "status": "ok", "session": 3.0, "week": 50.0, "fable": null, "spend_usd": 0.0}}}
+        not json
+        {"ts": "2026-10-15T10:00:00+03:00", "event": "park", "session": "s1", "from": "claude2", "to": null, "trigger": "hard", "reason": null, "accounts": {}}
+        """
+        try lines.write(to: url, atomically: true, encoding: .utf8)
+
+        let events = PoolEvent.load(url: url, since: .distantPast)
+        XCTAssertEqual(events.map(\.event), ["switch", "park"])
+        XCTAssertEqual(events[0].dir(of: events[0].to), "/Users/x/.claude-work2")
+        XCTAssertEqual(events[0].accounts["claude1"]?.session, 97)
+        XCTAssertNil(events[0].accounts["claude2"]?.fable)
+        XCTAssertFalse(events[0].noFreeAccount)
+        XCTAssertTrue(events[1].noFreeAccount)
+        XCTAssertNil(events[1].to)
+        XCTAssertEqual(events[0].ts, ISO8601DateFormatter().date(from: "2026-10-15T06:31:02Z"))
+    }
+
+    func testProjectedFull() {
+        let now = Date(timeIntervalSince1970: 100_000)
+        func session(_ percent: Int, resetsIn hours: Double) -> LimitInfo {
+            LimitInfo(kind: "session", group: "session", percent: percent, severity: .normal,
+                      resetsAt: now.addingTimeInterval(hours * 3600), modelDisplayName: nil, isActive: true)
+        }
+        // 20%/h over the last hour, 60% left -> full in 3h, before a reset 4h out.
+        let rising = [(date: now.addingTimeInterval(-3600), percent: 20), (date: now, percent: 40)]
+        let full = projectedFull(rising, limit: session(40, resetsIn: 4), now: now)
+        XCTAssertEqual(full?.timeIntervalSince(now) ?? 0, 3 * 3600, accuracy: 1)
+        // Same pace, but the window resets first.
+        XCTAssertNil(projectedFull(rising, limit: session(40, resetsIn: 2), now: now))
+        // Flat, too little history, or samples from before the reset: no projection.
+        XCTAssertNil(projectedFull([(now.addingTimeInterval(-3600), 40), (now, 40)], limit: session(40, resetsIn: 4), now: now))
+        XCTAssertNil(projectedFull([(now.addingTimeInterval(-300), 30), (now, 40)], limit: session(40, resetsIn: 4), now: now))
+        XCTAssertNil(projectedFull([(now.addingTimeInterval(-3 * 3600), 0), (now.addingTimeInterval(-2 * 3600), 90)],
+                                   limit: session(10, resetsIn: 4.5), now: now))
+    }
+}

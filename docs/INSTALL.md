@@ -126,6 +126,7 @@ Codex login, only Agents Monitor's own state):
 
 ```bash
 defaults delete com.roy.agentsmonitor
+rm -rf ~/Library/Application\ Support/AgentsMonitor    # usage history behind the graphs
 ```
 
 If you added any **remote accounts**, Agents Monitor stored their credentials in its own

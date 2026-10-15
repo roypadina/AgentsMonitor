@@ -49,17 +49,32 @@ plus a spend row when applicable.
   budget for the window; sitting to the *right* means you're burning faster than even and will
   likely hit the limit before it resets.
 - **Percent** and a **"resets in Xh Ym"** countdown, computed from the API's `resets_at`.
+- **"full in ~Xh Ym at this pace"** (orange), only when the limit will run out before it
+  resets at the current burn rate. The pace is the rise over the last fifth of the window (the
+  last hour of a session, about 33 hours of a week), so it needs that much history first.
 
 **Spend row** (only shown when there's an extra-usage budget configured or something's already
 been spent): `$728.60 / $800.00 · 91%` — extra usage billed this month, in dollars. There's no
 progress bar or percent shown if the account has no configured spend limit, just the amount
 used.
 
+**Graphs:** the chart button in a card's header turns the card over. The back shows the same
+rows as graphs, in the bar's color, over the last 24 hours, 7 days or 30 days: click the chip in
+the header to switch, and the bar button to turn it back. Every poll is saved to
+`~/Library/Application Support/AgentsMonitor/history.jsonl` (90 days kept), so the graphs fill
+in as the app runs.
+
+**Account switches:** if an account-pooling script such as ccpool runs on this Mac and writes
+`~/.local/state/claude-pool/events.jsonl`, its switches appear as dashed markers on the graphs
+(red when no account was free) and the last five are listed under the cards: time, from → to,
+why (`hard`, `soft`, `asked`, `rate_limit`), and each account's session / week / Fable percent
+at that moment. Without that file this section stays hidden.
+
 **Error states**, shown in place of the limit rows when something's wrong with that account:
 see the [Troubleshooting table](#troubleshooting) for what each one means and how to fix it.
 
 **Footer:** last-refresh time, **Refresh** (manual poll, ignores the interval), **Settings**,
-**Quit**.
+**About**, **Support**, **Quit**.
 
 ## Accounts
 

@@ -27,10 +27,13 @@ struct PopoverView: View {
                 }
                 .padding(12)
             }
+            if !store.poolEvents.isEmpty {
+                poolSwitches
+            }
             Divider()
             footer
         }
-        .frame(width: 360)
+        .frame(width: 420)
         .sheet(item: $repasteAccount) { account in
             RemoteCredentialsSheet(
                 mode: .repaste(accountId: account.id, accountName: account.name),
@@ -51,27 +54,44 @@ struct PopoverView: View {
         .padding(24)
     }
 
+    /// Last few ccpool switches, newest first. Only shown when ccpool runs on this Mac.
+    private var poolSwitches: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("ccpool switches").font(.caption.bold())
+            ForEach(Array(store.poolEvents.suffix(5).reversed())) { PoolEventRow(event: $0) }
+        }
+        .padding(.horizontal, 12)
+        .padding(.bottom, 10)
+    }
+
     private var footer: some View {
         HStack(spacing: 10) {
-            if let last = store.lastRefresh {
-                Text("Updated \(last.formatted(date: .omitted, time: .shortened))")
-            } else {
-                Text("Never refreshed")
+            Group {
+                if let last = store.lastRefresh {
+                    Text("Updated \(last.formatted(date: .omitted, time: .shortened))")
+                } else {
+                    Text("Never refreshed")
+                }
             }
-            Spacer()
+            .lineLimit(1)
+            Spacer(minLength: 0)
             // Explicit accessibility labels. Inspecting this popover over the accessibility API
             // showed the footer as three buttons with no title, which would leave VoiceOver
             // announcing them as anonymous. The tree here reports its children inconsistently
             // (69 elements one moment, none the next), so treat these as belt-and-braces rather
             // than a confirmed fix — they cost nothing and are correct either way.
-            Button("Refresh") { Task { await store.refresh() } }
-                .disabled(store.isRefreshing)
-                .accessibilityLabel("Refresh")
-            OpenSettingsButton()
-            Button("About") { AboutInfo.showWindow() }
-            Button("Support ☕") { NSWorkspace.shared.open(AboutInfo.kofi) }
-            Button("Quit") { NSApplication.shared.terminate(nil) }
-                .accessibilityLabel("Quit")
+            // Natural width: squeezed, the bordered buttons truncated to "Refr…", "Setti…".
+            HStack(spacing: 8) {
+                Button("Refresh") { Task { await store.refresh() } }
+                    .disabled(store.isRefreshing)
+                    .accessibilityLabel("Refresh")
+                OpenSettingsButton()
+                Button("About") { AboutInfo.showWindow() }
+                Button("Support ☕") { NSWorkspace.shared.open(AboutInfo.kofi) }
+                Button("Quit") { NSApplication.shared.terminate(nil) }
+                    .accessibilityLabel("Quit")
+            }
+            .fixedSize()
         }
         .font(.caption)
         .controlSize(.small)
@@ -85,26 +105,48 @@ private struct AccountCard: View {
     let account: Account
     let state: AccountState
     var onRepaste: () -> Void
+    @State private var flipped = false
+    @State private var span: GraphSpan = .day
+    private let store = AppStore.shared
 
     private var isLocal: Bool {
         if case .local = account.kind { return true }
         return false
     }
 
+    /// The chart button turns the card over: bars on the front, the same rows as graphs on the
+    /// back. The back is laid over the front, so the card keeps exactly its size.
     var body: some View {
+        let angle = flipped ? 180.0 : 0
+        face(back: false)
+            .modifier(FlipFace(angle: angle, isBack: false))
+            .overlay {
+                face(back: true)
+                    .modifier(FlipFace(angle: angle, isBack: true))
+            }
+    }
+
+    private func face(back: Bool) -> some View {
         HStack(alignment: .top, spacing: 8) {
             ProviderAccent(provider: account.provider)
             VStack(alignment: .leading, spacing: 8) {
-                header
-                content
+                header(back: back)
+                if back { graphs } else { content }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: .infinity, maxHeight: back ? .infinity : nil, alignment: .topLeading)
         }
         .padding(12)
         .background(.background.secondary, in: RoundedRectangle(cornerRadius: 10))
     }
 
-    private var header: some View {
+    private var snapshot: UsageSnapshot? {
+        switch state {
+        case .ok(let snapshot), .stale(let snapshot, _): return snapshot
+        default: return nil
+        }
+    }
+
+    private func header(back: Bool) -> some View {
         HStack(spacing: 6) {
             Text(account.name).font(.headline)
             ProviderBadge(provider: account.provider)
@@ -114,6 +156,24 @@ private struct AccountCard: View {
                 .background(Color.secondary.opacity(0.15), in: Capsule())
                 .foregroundStyle(.secondary)
             Spacer()
+            if back {
+                Button(span.rawValue) { span = span.next }
+                    .buttonStyle(.borderless)
+                    .font(.caption2)
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(Color.secondary.opacity(0.15), in: Capsule())
+                    .help("Graph span — click for the next one")
+            }
+            if snapshot != nil {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.45)) { flipped.toggle() }
+                } label: {
+                    Image(systemName: back ? "chart.bar.xaxis" : "chart.xyaxis.line").font(.caption)
+                }
+                .buttonStyle(.borderless)
+                .help(back ? "Show bars" : "Show usage graphs")
+                .accessibilityLabel(back ? "Show bars" : "Show usage graphs")
+            }
             if case .stale = state {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.caption2)
@@ -173,12 +233,41 @@ private struct AccountCard: View {
     private func snapshotRows(_ snapshot: UsageSnapshot) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             ForEach(snapshot.limits) { limit in
-                LimitRow(limit: limit)
+                LimitRow(limit: limit,
+                         full: projectedFull(AppStore.shared.points(for: account.id, label: limit.label), limit: limit))
             }
             // Hide the row entirely for accounts with no extra-usage budget and nothing spent.
             if let spend = snapshot.spend, spend.enabled,
                spend.limitMinor != nil || spend.usedMinor > 0 {
                 SpendRow(spend: spend)
+            }
+        }
+    }
+
+    /// Back of the card: the front's rows, each as a graph over `span`.
+    @ViewBuilder
+    private var graphs: some View {
+        if let snapshot {
+            let since = Date().addingTimeInterval(-span.seconds)
+            let samples = store.history[account.id] ?? []
+            let events = store.poolEvents.filter { event in
+                event.ts >= since && (event.noFreeAccount
+                    || store.account(forPool: event.from, in: event)?.id == account.id
+                    || store.account(forPool: event.to, in: event)?.id == account.id)
+            }
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(snapshot.limits) { limit in
+                    LimitGraphRow(label: limit.label, value: "\(limit.percent)%", color: limit.severity.tint,
+                                  points: samples.compactMap { s in s.p[limit.label].map { (s.date, Double($0)) } },
+                                  since: since, events: events)
+                }
+                if let spend = snapshot.spend, spend.enabled,
+                   spend.limitMinor != nil || spend.usedMinor > 0 {
+                    LimitGraphRow(label: "Spend", value: spend.usedFormatted, color: spend.severity.tint,
+                                  points: samples.compactMap { s in s.spend.map { (s.date, Double($0)) } },
+                                  since: since, events: events,
+                                  domain: spend.limitMinor.map { 0...Double(max($0, 1)) })
+                }
             }
         }
     }
@@ -188,6 +277,8 @@ private struct AccountCard: View {
 
 private struct LimitRow: View {
     let limit: LimitInfo
+    /// When the recent pace runs it out before it resets (`projectedFull`).
+    var full: Date?
 
     private var color: Color {
         switch limit.severity {
@@ -225,8 +316,13 @@ private struct LimitRow: View {
             }
             .frame(height: 12)
             if let resetsAt = limit.resetsAt {
-                Text("resets in \(Self.countdown(to: resetsAt))")
-                    .font(.caption2).foregroundStyle(.secondary)
+                HStack(spacing: 4) {
+                    Text("resets in \(Self.countdown(to: resetsAt))").foregroundStyle(.secondary)
+                    if let full {
+                        Text("· full in ~\(Self.countdown(to: full)) at this pace").foregroundStyle(.orange)
+                    }
+                }
+                .font(.caption2)
             }
         }
     }
