@@ -33,7 +33,7 @@ struct PopoverView: View {
             Divider()
             footer
         }
-        .frame(width: 420)
+        .frame(width: 440)
         .sheet(item: $repasteAccount) { account in
             RemoteCredentialsSheet(
                 mode: .repaste(accountId: account.id, accountName: account.name),
@@ -66,14 +66,17 @@ struct PopoverView: View {
 
     private var footer: some View {
         HStack(spacing: 10) {
-            Group {
-                if let last = store.lastRefresh {
-                    Text("Updated \(last.formatted(date: .omitted, time: .shortened))")
-                } else {
-                    Text("Never refreshed")
+            // Drops the word before it would cut the time to "Update…".
+            if let last = store.lastRefresh {
+                let time = last.formatted(date: .omitted, time: .shortened)
+                ViewThatFits {
+                    Text("Updated \(time)")
+                    Text(time)
                 }
+                .lineLimit(1)
+            } else {
+                Text("Never refreshed").lineLimit(1)
             }
-            .lineLimit(1)
             Spacer(minLength: 0)
             // Explicit accessibility labels. Inspecting this popover over the accessibility API
             // showed the footer as three buttons with no title, which would leave VoiceOver

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-10-15
+
+### Fixed
+- The footer no longer cuts the last-refresh time to "Update…": the popover is a little wider, and on a tight fit the word "Updated" is dropped before the time is.
+
 ## [1.5.0] - 2026-10-15
 
 ### Added

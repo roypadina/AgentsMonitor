@@ -64,6 +64,8 @@ the header to switch, and the bar button to turn it back. Every poll is saved to
 `~/Library/Application Support/AgentsMonitor/history.jsonl` (90 days kept), so the graphs fill
 in as the app runs.
 
+<img src="screenshots/graphs.png" alt="An account card turned over to its graph side, 24-hour span" width="393">
+
 **Account switches:** if an account-pooling script such as ccpool runs on this Mac and writes
 `~/.local/state/claude-pool/events.jsonl`, its switches appear as dashed markers on the graphs
 (red when no account was free) and the last five are listed under the cards: time, from → to,

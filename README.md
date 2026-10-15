@@ -18,7 +18,7 @@ from under you.
 
 <br>
 
-<img src="docs/screenshots/popover.png" alt="Agents Monitor popover: three accounts, each showing Session/Week/Week · Fable progress bars with severity coloring and a pacing tick, plus a monthly spend row." width="420">
+<img src="docs/screenshots/popover.png" alt="Agents Monitor popover: three Claude accounts and one Codex account, each showing Session/Week/Week · Fable progress bars with severity coloring, a pacing tick and a reset countdown, plus a monthly spend row." width="420">
 
 </div>
 
@@ -41,6 +41,7 @@ Claude Code and the status line in Codex:
 - **Usage graphs** — the chart button on a card turns it over: the same rows as graphs over the
   last 24 hours, 7 days or 30 days (the chip in the card's header switches the span). Every poll
   is kept in `~/Library/Application Support/AgentsMonitor/history.jsonl` for 90 days
+  <br><img src="docs/screenshots/graphs.png" alt="An account card turned over to its graph side: Session, Week, Week · Fable and Spend as line graphs over the last 24 hours." width="393">
 - A **"full in ~7h at this pace"** warning under any limit that will run out before it resets at
   the current burn rate
 - **Account switches** from an account-pooling script such as ccpool, when one writes
