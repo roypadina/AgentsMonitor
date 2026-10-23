@@ -89,6 +89,29 @@ private struct AboutView: View {
             Link("Report an issue", destination: AboutInfo.github.appendingPathComponent("issues"))
                 .font(.callout)
 
+            Divider()
+
+            VStack(spacing: 8) {
+                Text("Have an idea, or want to help build it?").font(.headline)
+                Text("Feature requests and pull requests are welcome. Ko-fi supporters go to the front of the queue.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                HStack {
+                    Link(destination: URL(string: "https://github.com/roypadina/AgentsMonitor/issues/new?template=feature_request.yml")!) {
+                        Text("Request a feature").frame(minWidth: 120)
+                    }
+                    .buttonStyle(.bordered)
+
+                    Link(destination: URL(string: "https://github.com/roypadina/AgentsMonitor/blob/main/CONTRIBUTING.md")!) {
+                        Text("Contribute").frame(minWidth: 90)
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+
             Text("© Roy Padina · MIT")
                 .font(.caption)
                 .foregroundStyle(.secondary)

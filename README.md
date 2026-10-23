@@ -259,6 +259,14 @@ every request (±1–2s observed) — exact comparison caused an alert on every 
   vendor endpoints — both are why. See [Is it safe?](docs/USER-GUIDE.md#is-it-safe) in the
   user guide.
 
+## Feature requests and contributions
+
+Have an idea for Agents Monitor? [Request a feature](https://github.com/roypadina/AgentsMonitor/issues/new?template=feature_request.yml) and say what you're trying to do; that matters more than the exact feature. Found a bug? [Report it](https://github.com/roypadina/AgentsMonitor/issues/new?template=bug_report.yml).
+
+Code is welcome too: small, focused pull requests, and an issue first for anything bigger. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
+Tipped on [Ko-fi](https://ko-fi.com/roypadina)? Add your Ko-fi name to the request and it goes to the front of my queue. It's a thank-you, not a purchase: no promise on what ships or when.
+
 ## More Mac apps by Roy
 
 Free, open-source Mac menu-bar apps and terminal tools, all on one site: **[apps.roypadina.synology.me](https://apps.roypadina.synology.me/)**.
