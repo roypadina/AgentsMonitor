@@ -27,9 +27,6 @@ struct PopoverView: View {
                 }
                 .padding(12)
             }
-            if !store.poolEvents.isEmpty {
-                poolSwitches
-            }
             Divider()
             footer
         }
@@ -52,16 +49,6 @@ struct PopoverView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(24)
-    }
-
-    /// Last few ccpool switches, newest first. Only shown when ccpool runs on this Mac.
-    private var poolSwitches: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("ccpool switches").font(.caption.bold())
-            ForEach(Array(store.poolEvents.suffix(5).reversed())) { PoolEventRow(event: $0) }
-        }
-        .padding(.horizontal, 12)
-        .padding(.bottom, 10)
     }
 
     private var footer: some View {
@@ -253,22 +240,17 @@ private struct AccountCard: View {
         if let snapshot {
             let since = Date().addingTimeInterval(-span.seconds)
             let samples = store.history[account.id] ?? []
-            let events = store.poolEvents.filter { event in
-                event.ts >= since && (event.noFreeAccount
-                    || store.account(forPool: event.from, in: event)?.id == account.id
-                    || store.account(forPool: event.to, in: event)?.id == account.id)
-            }
             VStack(alignment: .leading, spacing: 8) {
                 ForEach(snapshot.limits) { limit in
                     LimitGraphRow(label: limit.label, value: "\(limit.percent)%", color: limit.severity.tint,
                                   points: samples.compactMap { s in s.p[limit.label].map { (s.date, Double($0)) } },
-                                  since: since, events: events)
+                                  since: since)
                 }
                 if let spend = snapshot.spend, spend.enabled,
                    spend.limitMinor != nil || spend.usedMinor > 0 {
                     LimitGraphRow(label: "Spend", value: spend.usedFormatted, color: spend.severity.tint,
                                   points: samples.compactMap { s in s.spend.map { (s.date, Double($0)) } },
-                                  since: since, events: events,
+                                  since: since,
                                   domain: spend.limitMinor.map { 0...Double(max($0, 1)) })
                 }
             }

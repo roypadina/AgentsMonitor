@@ -94,26 +94,10 @@ func samples(for account: Account, snap: UsageSnapshot) -> [UsageSample] {
     }
 }
 
-let events: [PoolEvent] = {
-    func ev(_ ago: Double, _ from: String, _ to: String, _ trigger: String) -> String {
-        let ts = ISO8601DateFormatter().string(from: now.addingTimeInterval(-ago * h))
-        return """
-        {"ts":"\(ts)","event":"switch","session":"s1","from":"\(from)","to":"\(to)","trigger":"\(trigger)","accounts":{
-        "work":{"dir":"/Users/example/.claude","session":64,"week":41,"fable":22},
-        "personal":{"dir":"/Users/example/.claude-personal","session":12,"week":93,"fable":84},
-        "side":{"dir":"/Users/example/.claude-side","session":3,"week":18,"fable":9}}}
-        """
-    }
-    let d = JSONDecoder(); d.dateDecodingStrategy = .iso8601
-    return [ev(20, "personal", "work", "soft"), ev(9, "work", "side", "hard"), ev(2.5, "side", "work", "launch")]
-        .map { try! d.decode(PoolEvent.self, from: Data($0.utf8)) }
-}()
-
 MainActor.assumeIsolated {
     let store = AppStore.shared
     store.accounts = snaps.map(\.0)
     for (a, s) in snaps { store.states[a.id] = .ok(s); store.history[a.id] = samples(for: a, snap: s) }
-    store.poolEvents = events
     store.lastRefresh = now
     render(PopoverView(), size: CGSize(width: 440, height: 0), name: "popover")
     RenderHooks.flipCards = true

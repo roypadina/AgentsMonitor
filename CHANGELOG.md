@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.3] - 2026-10-23
+
+### Removed
+- The "ccpool switches" section and the switch markers on the graphs, together with the code that read an account-pooling script's log. Agents Monitor no longer depends on any other tool.
+
+### Changed
+- The per-account usage cache now lives in `~/Library/Caches/<bundle id>/` instead of `~/.cache/claude-pool/`. The old directory is simply no longer used.
+- README and wiki: new Privacy section (what is read, what leaves the Mac, how remote accounts are stored, no affiliation with Anthropic or OpenAI).
+- Test fixtures and docs use generic paths and addresses.
+
 ## [1.5.2] - 2026-10-23
 
 ### Changed
