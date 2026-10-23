@@ -4,6 +4,9 @@ import AgentsMonitorKit
 
 // MARK: - Card flip
 
+/// Dev-only switch for Scripts/render-screenshots: renders the cards graph side up.
+enum RenderHooks { nonisolated(unsafe) static var flipCards = false }
+
 /// How far back the graph side of a card reaches; tapping the header chip cycles it.
 enum GraphSpan: String, CaseIterable {
     case day = "24h", week = "7d", month = "30d"

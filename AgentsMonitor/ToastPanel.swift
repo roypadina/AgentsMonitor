@@ -82,7 +82,7 @@ enum ToastPanel {
     }
 }
 
-private struct ToastContent: View {
+struct ToastContent: View {
     let alert: AgentsMonitorKit.Alert
 
     private var accent: Color {

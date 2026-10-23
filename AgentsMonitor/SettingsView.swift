@@ -122,7 +122,7 @@ private struct AboutTab: View {
 // MARK: - Accounts tab
 
 @MainActor
-private struct AccountsTab: View {
+struct AccountsTab: View {
     private let store = AppStore.shared
     @State private var showAddRemote = false
     @State private var repasteAccount: Account?

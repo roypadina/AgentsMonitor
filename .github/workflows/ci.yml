@@ -1,0 +1,25 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    name: Build and test
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Test
+        run: swift test --package-path AgentsMonitorKit
+
+      - name: Build (universal)
+        run: |
+          xcodebuild -workspace AgentsMonitor.xcworkspace -scheme AgentsMonitor \
+            -configuration Release -derivedDataPath build ARCHS="arm64 x86_64" ONLY_ACTIVE_ARCH=NO build
+
+      - name: Verify universal
+        run: lipo -archs build/Build/Products/Release/AgentsMonitor.app/Contents/MacOS/AgentsMonitor | grep -q x86_64

@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="AgentsMonitor/Assets.xcassets/AppIcon.appiconset/icon_128x128@2x.png" alt="Agents Monitor icon" width="128">
+
 # Agents Monitor
 
 ### Watch your coding agents' usage limits from the menu bar — before you hit them.
@@ -11,14 +13,20 @@ machine), and alerts you — desktop notification, in-app toast with sound, and
 from under you.
 
 [![macOS](https://img.shields.io/badge/macOS-14%2B-000000?logo=apple&logoColor=white)](https://www.apple.com/macos/)
+[![Universal](https://img.shields.io/badge/universal-Apple%20Silicon%20%7C%20Intel-lightgrey)](#requirements)
+[![Release](https://img.shields.io/github/v/release/roypadina/AgentsMonitor)](https://github.com/roypadina/AgentsMonitor/releases/latest)
 [![Swift](https://img.shields.io/badge/Swift-5.9-F05138?logo=swift&logoColor=white)](https://swift.org)
 [![Homebrew](https://img.shields.io/badge/brew-roypadina%2Ftap-FBB040?logo=homebrew&logoColor=white)](https://github.com/roypadina/homebrew-tap)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?logo=opensourceinitiative&logoColor=white)](LICENSE)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-support-F16061?logo=ko-fi&logoColor=white)](https://ko-fi.com/roypadina)
 
+```bash
+brew install --cask roypadina/tap/agents-monitor
+```
+
 <br>
 
-<img src="docs/screenshots/popover.png" alt="Agents Monitor popover: three Claude accounts and one Codex account, each showing Session/Week/Week · Fable progress bars with severity coloring, a pacing tick and a reset countdown, plus a monthly spend row." width="420">
+<img src="docs/screenshots/popover.png" alt="Agents Monitor popover: three Claude accounts and one Codex account, each showing Session/Week/Week · Fable progress bars with severity coloring, a pacing tick and a reset countdown, plus a monthly spend row and recent account switches." width="420">
 
 </div>
 
@@ -106,18 +114,24 @@ Three sinks, each toggleable per account in Settings:
 - **Toast** — a floating panel top-right with a slide-and-fade animation and a sound
 
 <div align="center">
-<img src="docs/screenshots/toasts.png" alt="Agents Monitor toast notifications stacking top-right for a Week · Fable and a Spend alert, plus the macOS login-item banner." width="420">
+<img src="docs/screenshots/settings-accounts.png" alt="Settings, Accounts tab: four accounts with per-account Desktop, ntfy and Menu bar toggles." width="420">
+<br><br>
+<img src="docs/screenshots/toasts.png" alt="Agents Monitor toast notifications stacking top-right: a weekly-limit alert, an extra-usage alert and a Codex session alert." width="420">
 </div>
+
+## Requirements
+
+macOS 14 Sonoma or later · Apple Silicon and Intel (universal binary)
 
 ## Install
 
 ### Homebrew (recommended)
 
 ```bash
-brew tap roypadina/tap
-brew trust --cask roypadina/tap/agents-monitor   # newer Homebrew requires trusting third-party casks
-brew install --cask agents-monitor
+brew install --cask roypadina/tap/agents-monitor
 ```
+
+If your Homebrew asks you to trust third-party casks first: `brew trust --cask roypadina/tap/agents-monitor`.
 
 > [!IMPORTANT]
 > **Clear quarantine before the first launch, not after.** The app is ad-hoc signed (not
@@ -129,7 +143,8 @@ brew install --cask agents-monitor
 > xattr -dr com.apple.quarantine "/Applications/AgentsMonitor.app"   # then launch
 > ```
 >
-> Right-click → **Open** works too, as long as you pick Open and not Move to Trash.
+> On macOS 15 and later, right-click → Open no longer bypasses Gatekeeper. If the app was blocked,
+> open **System Settings → Privacy & Security** and click **Open Anyway**.
 
 ### Manual install
 
@@ -149,8 +164,8 @@ open /Applications/AgentsMonitor.app
 ```
 
 > Agents Monitor is **ad-hoc signed, not notarized** (no paid Apple Developer ID). On first
-> launch macOS will refuse to open it — **right-click the app in `/Applications` → Open** (then
-> Open again on the second dialog), or clear quarantine yourself:
+> launch macOS will refuse to open it — open **System Settings → Privacy & Security** and click
+> **Open Anyway** (macOS 15+), or clear quarantine yourself:
 > ```bash
 > xattr -dr com.apple.quarantine "/Applications/AgentsMonitor.app"
 > ```

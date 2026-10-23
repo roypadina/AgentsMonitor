@@ -108,7 +108,7 @@ private struct AccountCard: View {
     let account: Account
     let state: AccountState
     var onRepaste: () -> Void
-    @State private var flipped = false
+    @State private var flipped = RenderHooks.flipCards
     @State private var span: GraphSpan = .day
     private let store = AppStore.shared
 

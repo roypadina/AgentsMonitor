@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.2] - 2026-10-23
+
+### Changed
+- Universal build: now runs on Intel Macs as well as Apple Silicon.
+- README rewritten as a landing page with fresh screenshots (fake accounts), install one-liner and macOS 15+ first-launch steps (Open Anyway).
+- Added CI, contributing guide, security policy, code of conduct and issue/PR templates; internal design docs are no longer tracked.
+
 ## [1.5.1] - 2026-10-15
 
 ### Fixed

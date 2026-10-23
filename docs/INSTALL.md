@@ -1,6 +1,6 @@
 # Install
 
-Requires **macOS 14 (Sonoma) or later**. No admin rights, no sudo, no paid Apple Developer
+Requires **macOS 14 (Sonoma) or later**, on Apple Silicon or Intel (universal binary). No admin rights, no sudo, no paid Apple Developer
 account needed to build or run it.
 
 ## Homebrew (recommended)
@@ -44,8 +44,8 @@ Agents Monitor is signed ad-hoc (`CODE_SIGN_IDENTITY = -`), not notarized — th
 Apple Developer ID behind it. macOS will refuse to open it the first time with a "can't be
 opened because Apple cannot check it for malicious software" dialog. Two ways past it:
 
-- **Right-click (or Control-click) `AgentsMonitor.app` in `/Applications` → Open**, then click
-  **Open** again on the follow-up dialog. Only needed once.
+- **System Settings → Privacy & Security → Open Anyway** (macOS 15 and later; right-click → Open
+  no longer works there). Only needed once.
 - Or clear the quarantine flag yourself:
   ```bash
   xattr -dr com.apple.quarantine "/Applications/AgentsMonitor.app"
@@ -75,7 +75,7 @@ xattr -dr com.apple.quarantine "/Applications/AgentsMonitor.app"
 open /Applications/AgentsMonitor.app
 ```
 
-Right-click → **Open** also works — just make sure you click Open, not Move to Trash. A copy you
+On macOS 15+, **System Settings → Privacy & Security → Open Anyway** also works — just make sure you never click Move to Trash. A copy you
 built yourself needs none of this: `xcodebuild` registers an execution-policy exception for it,
 so it never gets prompted.
 

@@ -88,38 +88,38 @@ final class TolerantDecodingTests: XCTestCase {
 final class DerivationTests: XCTestCase {
     func testDefaultClaudeDirUsesUnsuffixedService() {
         XCTAssertEqual(
-            KeychainService.serviceName(forConfigDir: "/Users/roypadina/.claude", home: "/Users/roypadina"),
+            KeychainService.serviceName(forConfigDir: "/Users/example/.claude", home: "/Users/example"),
             "Claude Code-credentials")
     }
 
     func testVerifiedHashedDir() {
-        // Verified live 2026-08-10: sha256("/Users/roypadina/.claude-work2")[0..8] == "e5af6df1".
+        // sha256("/Users/example/.claude-work2")[0..8] == "774cf416".
         XCTAssertEqual(
-            KeychainService.serviceName(forConfigDir: "/Users/roypadina/.claude-work2", home: "/Users/roypadina"),
-            "Claude Code-credentials-e5af6df1")
+            KeychainService.serviceName(forConfigDir: "/Users/example/.claude-work2", home: "/Users/example"),
+            "Claude Code-credentials-774cf416")
     }
 
     func testTrailingSlashNormalizationOnHashedDir() {
         XCTAssertEqual(
-            KeychainService.serviceName(forConfigDir: "/Users/roypadina/.claude-work2/", home: "/Users/roypadina"),
-            "Claude Code-credentials-e5af6df1")
+            KeychainService.serviceName(forConfigDir: "/Users/example/.claude-work2/", home: "/Users/example"),
+            "Claude Code-credentials-774cf416")
     }
 
     func testTrailingSlashNormalizationOnDefaultDir() {
         XCTAssertEqual(
-            KeychainService.serviceName(forConfigDir: "/Users/roypadina/.claude/", home: "/Users/roypadina"),
+            KeychainService.serviceName(forConfigDir: "/Users/example/.claude/", home: "/Users/example"),
             "Claude Code-credentials")
     }
 
     func testDefaultDirChecksHashedAndUnsuffixedItems() {
-        // Verified live 2026-09-26: CLAUDE_CONFIG_DIR=~/.claude writes "...-f3e2a4de" and
+        // Verified live 2026-09-26: CLAUDE_CONFIG_DIR=~/.claude writes "...-402b469b" and
         // leaves the unsuffixed item to expire.
         XCTAssertEqual(
-            KeychainService.serviceNames(forConfigDir: "/Users/roypadina/.claude", home: "/Users/roypadina"),
-            ["Claude Code-credentials-f3e2a4de", "Claude Code-credentials"])
+            KeychainService.serviceNames(forConfigDir: "/Users/example/.claude", home: "/Users/example"),
+            ["Claude Code-credentials-402b469b", "Claude Code-credentials"])
         XCTAssertEqual(
-            KeychainService.serviceNames(forConfigDir: "/Users/roypadina/.claude-work2", home: "/Users/roypadina"),
-            ["Claude Code-credentials-e5af6df1"])
+            KeychainService.serviceNames(forConfigDir: "/Users/example/.claude-work2", home: "/Users/example"),
+            ["Claude Code-credentials-774cf416"])
     }
 
     func testFreshestPayloadWins() {
@@ -529,7 +529,7 @@ final class MenuBarTextTests: XCTestCase {
     }
 
     /// A Codex account is named after an email address, so the tag letter has to come from the
-    /// provider — otherwise "royp@…" reads as "r" next to Claude's "c".
+    /// provider — otherwise "user@…" reads as "r" next to Claude's "c".
     func testCodexAccountsTagWithX() {
         let accounts = [
             Account(name: "claude", kind: .local(configDirPath: "/tmp/.claude")),

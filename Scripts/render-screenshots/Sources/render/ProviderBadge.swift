@@ -1,0 +1,1 @@
+../../../../AgentsMonitor/ProviderBadge.swift
