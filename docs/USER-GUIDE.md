@@ -66,12 +66,6 @@ in as the app runs.
 
 <img src="screenshots/graphs.png" alt="An account card turned over to its graph side, 24-hour span" width="393">
 
-**Account switches:** if an account-pooling script such as ccpool runs on this Mac and writes
-`~/.local/state/claude-pool/events.jsonl`, its switches appear as dashed markers on the graphs
-(red when no account was free) and the last five are listed under the cards: time, from → to,
-why (`hard`, `soft`, `asked`, `rate_limit`), and each account's session / week / Fable percent
-at that moment. Without that file this section stays hidden.
-
 **Error states**, shown in place of the limit rows when something's wrong with that account:
 see the [Troubleshooting table](#troubleshooting) for what each one means and how to fix it.
 
@@ -316,8 +310,10 @@ Fair question — it reads another app's keychain items and calls an endpoint An
 published.
 
 - **Open source (MIT).** Every line is in this repo.
-- **No network calls beyond Anthropic's usage endpoint and your own ntfy server** (if
-  configured). No analytics, no telemetry, no third party ever sees your usage data.
+- **No network calls beyond the providers' usage endpoints** (`api.anthropic.com`,
+  `chatgpt.com`), Anthropic's token endpoint for *remote* accounts only, and your own ntfy
+  server (if configured). No analytics, no telemetry, no third party ever sees your usage data.
+  See [Privacy](../README.md#privacy).
 - **Never refreshes a local account's token.** The one thing that could damage something
   *outside* this app — burning Claude Code's own refresh token — is explicitly guarded against
   in `CredentialStore`.

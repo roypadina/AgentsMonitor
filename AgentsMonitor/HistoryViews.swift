@@ -61,14 +61,13 @@ extension Severity {
 // MARK: - Graph row
 
 /// The graph side of one limit row: same header as the bar, then the value over time in the
-/// bar's color, ccpool switches as dashed rules and "no free account" moments as red ones.
+/// bar's color.
 struct LimitGraphRow: View {
     let label: String
     let value: String
     let color: Color
     let points: [(date: Date, value: Double)]
     let since: Date
-    let events: [PoolEvent]
     /// nil = scale to the data (spend without a cap).
     var domain: ClosedRange<Double>? = 0...100
 
@@ -88,11 +87,6 @@ struct LimitGraphRow: View {
                     LineMark(x: .value("Time", shown[i].date), y: .value("Value", shown[i].value))
                         .foregroundStyle(color)
                         .lineStyle(StrokeStyle(lineWidth: 1.5))
-                }
-                ForEach(events) { event in
-                    RuleMark(x: .value("Time", event.ts))
-                        .foregroundStyle(event.noFreeAccount ? Color.red : Color.secondary)
-                        .lineStyle(StrokeStyle(lineWidth: 1, dash: event.noFreeAccount ? [] : [3, 2]))
                 }
             }
             .chartXScale(domain: since...now)
@@ -116,59 +110,5 @@ struct LimitGraphRow: View {
     private static func thin(_ points: [(date: Date, value: Double)], to maxCount: Int) -> [(date: Date, value: Double)] {
         let step = max(1, points.count / maxCount)
         return step == 1 ? points : stride(from: 0, to: points.count, by: step).map { points[$0] }
-    }
-}
-
-// MARK: - ccpool event row
-
-/// "09:12  claude → claude2  hard", then session / week / Fable % of the two accounts it moved
-/// between (every account when none was free).
-struct PoolEventRow: View {
-    let event: PoolEvent
-    private let store = AppStore.shared
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 1) {
-            HStack(spacing: 6) {
-                Text(event.ts.formatted(date: .omitted, time: .shortened))
-                    .monospacedDigit()
-                    .foregroundStyle(.secondary)
-                Text(title).foregroundStyle(event.noFreeAccount ? Color.red : Color.primary)
-                Spacer()
-                if let trigger = event.trigger {
-                    Text(trigger).foregroundStyle(.secondary)
-                }
-            }
-            if !numbers.isEmpty {
-                Text(numbers).foregroundStyle(.secondary).lineLimit(2)
-            }
-        }
-        .font(.caption)
-        .help(event.reason ?? "")
-    }
-
-    private var title: String {
-        switch event.event {
-        case "switch":
-            return "\(store.poolName(event.from, in: event)) → \(store.poolName(event.to, in: event))"
-        case "park":
-            return "No free account — session parked"
-        case "extra":
-            return "No free account — paid usage on \(store.poolName(event.to, in: event))"
-        default:
-            return event.event
-        }
-    }
-
-    private var numbers: String {
-        let names = event.noFreeAccount ? event.accounts.keys.sorted() : [event.from, event.to].compactMap { $0 }
-        return names.compactMap { name -> String? in
-            guard let a = event.accounts[name] else { return nil }
-            return "\(store.poolName(name, in: event)) \(Self.pct(a.session))/\(Self.pct(a.week))/\(Self.pct(a.fable))"
-        }.joined(separator: " · ")
-    }
-
-    private static func pct(_ value: Double?) -> String {
-        value.map { String(Int($0.rounded())) } ?? "–"
     }
 }

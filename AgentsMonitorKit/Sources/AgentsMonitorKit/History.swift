@@ -81,48 +81,6 @@ func jsonLines<T: Decodable>(_ type: T.Type, url: URL, decoder: JSONDecoder = JS
     return data.split(separator: 0x0A).compactMap { try? decoder.decode(T.self, from: Data($0)) }
 }
 
-// MARK: - ccpool switch log
-
-/// One line of ccpool's switch log, `~/.local/state/claude-pool/events.jsonl`. ccpool is a
-/// separate script that moves a Claude Code session to another account at the plan limit; the
-/// file exists only where it runs, and without it no switch markers are shown.
-public struct PoolEvent: Decodable, Sendable, Hashable, Identifiable {
-    public let ts: Date
-    public let event: String             // "switch", "park" (no account free), "extra" (none free, paid usage)
-    public let session: String
-    public let from: String?             // ccpool's account names; map with `dir(of:)`
-    public let to: String?
-    public let trigger: String?          // "hard", "soft", "asked", "rate_limit", "launch"
-    public let reason: String?
-    public let accounts: [String: PoolAccount]
-
-    public struct PoolAccount: Decodable, Sendable, Hashable {
-        public let dir: String?
-        public let session: Double?
-        public let week: Double?
-        public let fable: Double?
-    }
-
-    public var id: String { "\(ts.timeIntervalSince1970)|\(session)|\(event)" }
-    /// Every account was at its limit: the session parked, or went on paid extra usage.
-    public var noFreeAccount: Bool { event == "park" || event == "extra" }
-
-    /// The config dir ccpool knows `name` by — the key for matching an `Account`.
-    public func dir(of name: String?) -> String? {
-        name.flatMap { accounts[$0]?.dir }
-    }
-
-    public static var defaultURL: URL {
-        URL(fileURLWithPath: NSHomeDirectory()).appendingPathComponent(".local/state/claude-pool/events.jsonl")
-    }
-
-    public static func load(url: URL = defaultURL, since: Date) -> [PoolEvent] {
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
-        return jsonLines(PoolEvent.self, url: url, decoder: decoder).filter { $0.ts >= since }
-    }
-}
-
 // MARK: - Burn rate
 
 /// When `limit` hits 100% at the pace of the recent samples — nil when it would not before it

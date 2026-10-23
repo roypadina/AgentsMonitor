@@ -913,7 +913,7 @@ final class SharedUsageCacheTests: XCTestCase {
     }
 }
 
-// MARK: - History, ccpool events, burn rate
+// MARK: - History, burn rate
 
 final class HistoryTests: XCTestCase {
     private func tempURL() -> URL {
@@ -952,29 +952,6 @@ final class HistoryTests: XCTestCase {
 
     func testMissingFileLoadsEmpty() {
         XCTAssertEqual(UsageHistory(url: tempURL()).load(since: .distantPast), [])
-        XCTAssertEqual(PoolEvent.load(url: tempURL(), since: .distantPast), [])
-    }
-
-    /// Lines exactly as ccpool writes them, plus one broken line that must be skipped.
-    func testPoolEventsDecodeCcpoolLines() throws {
-        let url = tempURL()
-        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        let lines = """
-        {"ts": "2026-10-15T09:31:02+03:00", "event": "switch", "session": "s1", "from": "claude1", "to": "claude2", "trigger": "hard", "reason": "claude1 reached 97% (>= 97) - forcing switch", "accounts": {"claude1": {"dir": "/Users/x/.claude", "status": "ok", "session": 97.0, "week": 40.0, "fable": 11, "spend_usd": 31.51}, "claude2": {"dir": "/Users/x/.claude-work2", "status": "ok", "session": 3.0, "week": 50.0, "fable": null, "spend_usd": 0.0}}}
-        not json
-        {"ts": "2026-10-15T10:00:00+03:00", "event": "park", "session": "s1", "from": "claude2", "to": null, "trigger": "hard", "reason": null, "accounts": {}}
-        """
-        try lines.write(to: url, atomically: true, encoding: .utf8)
-
-        let events = PoolEvent.load(url: url, since: .distantPast)
-        XCTAssertEqual(events.map(\.event), ["switch", "park"])
-        XCTAssertEqual(events[0].dir(of: events[0].to), "/Users/x/.claude-work2")
-        XCTAssertEqual(events[0].accounts["claude1"]?.session, 97)
-        XCTAssertNil(events[0].accounts["claude2"]?.fable)
-        XCTAssertFalse(events[0].noFreeAccount)
-        XCTAssertTrue(events[1].noFreeAccount)
-        XCTAssertNil(events[1].to)
-        XCTAssertEqual(events[0].ts, ISO8601DateFormatter().date(from: "2026-10-15T06:31:02Z"))
     }
 
     func testProjectedFull() {

@@ -52,10 +52,6 @@ Claude Code and the status line in Codex:
   <br><img src="docs/screenshots/graphs.png" alt="An account card turned over to its graph side: Session, Week, Week · Fable and Spend as line graphs over the last 24 hours." width="393">
 - A **"full in ~7h at this pace"** warning under any limit that will run out before it resets at
   the current burn rate
-- **Account switches** from an account-pooling script such as ccpool, when one writes
-  `~/.local/state/claude-pool/events.jsonl`: dashed markers on the graphs (red when no account
-  was free) and the last five switches under the cards, with each account's session / week /
-  Fable numbers at that moment. No such file, nothing shown
 - A **provider badge** on every account — the agent's mark plus its name, in its own color, with
   the color also running down the leading edge of the card. Settings → General → Accounts picks
   how much shows (icon and name, icon only, name only, hidden) and whether it's colored. The
@@ -73,7 +69,7 @@ Claude Code and the status line in Codex:
 ## Accounts
 
 - **Claude, local** — any `CLAUDE_CONFIG_DIR` already logged in on this Mac (`~/.claude`,
-  `~/.claude-work2`, …). Auto-discovered straight from the keychain, and labeled using the
+  `~/.claude-work`, …). Auto-discovered straight from the keychain, and labeled using the
   email/org in `~/.claude*/.claude.json`. Tokens are read fresh from the keychain on every poll
   and **never refreshed by this app** — refreshing would burn Claude Code's single-use refresh
   token and force that profile into `/login`.
@@ -227,6 +223,27 @@ a full re-alert.
 Window-roll detection uses a 120s tolerance on `resets_at` because the server recomputes it on
 every request (±1–2s observed) — exact comparison caused an alert on every single poll once
 (351 phone pushes in 12 hours, before this was caught).
+
+## Privacy
+
+- **What it reads.** Your local Claude Code login (the Keychain items Claude Code created) and your
+  local Codex login (`<CODEX_HOME>/auth.json`), **read-only**, only to ask each provider's own
+  usage endpoint how much of your limits you have used. It never refreshes, rewrites or deletes
+  those logins.
+- **What leaves your Mac.** Only those usage requests: `api.anthropic.com` (Claude) and
+  `chatgpt.com` (Codex), each carrying that account's own access token. If you turn on **ntfy**,
+  alert text (account name, limit, percentage) goes to the ntfy server and topic you configure.
+  Nothing else: no analytics, no telemetry, no update checks, no third parties.
+- **Remote accounts.** If you paste credentials for an account that lives on another machine, the
+  app stores them in its own device-only Keychain item (not iCloud, not UserDefaults, never
+  logged). Because it owns that login, it refreshes those tokens itself by calling Anthropic's
+  token endpoint (`platform.claude.com`) when they expire. Local accounts are never refreshed.
+- **What it keeps on disk.** Your account list and settings in the app's preferences, a usage
+  history in `~/Library/Application Support/AgentsMonitor/history.jsonl` (percentages and spend
+  per account, 90 days), and a short-lived response cache in `~/Library/Caches/`.
+- **Not affiliated.** Agents Monitor is an independent project, not affiliated with, endorsed by
+  or sponsored by Anthropic or OpenAI. "Claude" and "Codex" are their products' names. The usage
+  endpoints it calls are undocumented and may change or stop working.
 
 ## Caveats
 

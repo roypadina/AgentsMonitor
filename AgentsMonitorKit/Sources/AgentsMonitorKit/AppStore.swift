@@ -55,8 +55,6 @@ public final class AppStore {
     public var isRefreshing = false
     /// Recent samples per account, oldest first — what the graphs draw. The file keeps more.
     public var history: [UUID: [UsageSample]] = [:]
-    /// ccpool switches and parks in the same span; empty when ccpool does not run here.
-    public var poolEvents: [PoolEvent] = []
     public static let historyDays: Double = 30
     /// App assigns Notifier.deliver here — the Kit never imports AppKit/UserNotifications.
     public var onAlerts: (([Alert], Account) -> Void)?
@@ -71,7 +69,6 @@ public final class AppStore {
     private var lastSnapshot: [UUID: UsageSnapshot] = [:]
     private var pollTask: Task<Void, Never>?
     private let usageHistory = UsageHistory()
-    private var poolEventsModified: Date?
 
     private static let accountsKey = "AgentsMonitor.accounts"
     private static let settingsKey = "AgentsMonitor.settings"
@@ -109,34 +106,9 @@ public final class AppStore {
 
         usageHistory.prune(before: Date().addingTimeInterval(-Double(UsageHistory.keepDays) * 86400))
         history = Dictionary(grouping: usageHistory.load(since: Self.historyStart), by: \.id)
-        reloadPoolEvents()
     }
 
     private static var historyStart: Date { Date().addingTimeInterval(-historyDays * 86400) }
-
-    /// The log is append-only and re-read only when it changed — usually never between polls.
-    private func reloadPoolEvents() {
-        let url = PoolEvent.defaultURL
-        let modified = (try? FileManager.default.attributesOfItem(atPath: url.path))?[.modificationDate] as? Date
-        guard modified != poolEventsModified else { return }
-        poolEventsModified = modified
-        poolEvents = PoolEvent.load(url: url, since: Self.historyStart)
-    }
-
-    /// The monitored account a ccpool event names, matched by config dir.
-    public func account(forPool name: String?, in event: PoolEvent) -> Account? {
-        guard let dir = event.dir(of: name) else { return nil }
-        let wanted = URL(fileURLWithPath: dir).standardizedFileURL.path
-        return accounts.first { account in
-            guard case .local(let path) = account.kind else { return false }
-            return URL(fileURLWithPath: path).standardizedFileURL.path == wanted
-        }
-    }
-
-    /// Our name for a ccpool account when it is monitored here, ccpool's otherwise.
-    public func poolName(_ name: String?, in event: PoolEvent) -> String {
-        account(forPool: name, in: event)?.name ?? name ?? "—"
-    }
 
     /// One series per limit label ("Session", "Week", ...) for one account, oldest first.
     public func points(for accountId: UUID, label: String) -> [(date: Date, percent: Int)] {
@@ -290,7 +262,6 @@ public final class AppStore {
         }
 
         usageHistory.append(newSamples)
-        reloadPoolEvents()
 
         // Persist the de-dupe memory (cheap: a few hundred bytes once per poll).
         if let snapshot = alertEngine.memorySnapshot {
@@ -535,7 +506,7 @@ public final class AppStore {
         discoverClaudeAccounts() + discoverCodexAccounts()
     }
 
-    /// Config-dir candidates for a provider: `~/.claude`, `~/.claude-work2`, `~/.claude3`,
+    /// Config-dir candidates for a provider: `~/.claude`, `~/.claude-work`, `~/.claude-personal`,
     /// `~/.codex`, ... Directories only — files such as `.claude.json` share the prefix.
     static func profileDirs(for provider: Provider, home: String = NSHomeDirectory()) -> [String] {
         let prefix = provider.configDirPrefix

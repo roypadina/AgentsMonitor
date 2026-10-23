@@ -247,7 +247,7 @@ struct AccountsTab: View {
         store.save()
     }
 
-    /// Config dirs are dot-directories (`~/.claude`, `~/.claude3`, `~/.codex`): without
+    /// Config dirs are dot-directories (`~/.claude`, `~/.claude-personal`, `~/.codex`): without
     /// `showsHiddenFiles` the panel hides them and there is nothing to select.
     private func pickConfigDir() -> URL? {
         let panel = NSOpenPanel()
