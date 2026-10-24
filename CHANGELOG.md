@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-10-25
+
+### Added
+- ntfy: optional access token (stored in the Keychain, sent only to your configured server) so the app can publish to a self-hosted server that requires a login.
+- ntfy: optional fallback topic URL (Keychain) used when the server errors or times out.
+- ntfy messages carry an `agents-monitor` tag and a short trace footer (sender, flow, event id, log hint); each send logs one `ntfy event=...` line.
+
 ## [1.5.5] - 2026-10-25
 
 ### Changed

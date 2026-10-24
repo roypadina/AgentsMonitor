@@ -107,7 +107,8 @@ stopped being covered by your plan and started costing money. Toggle in Settings
 Three sinks, each toggleable per account in Settings:
 - **Desktop** — a standard notification (grant permission once when macOS asks on first launch)
 - **ntfy** — a JSON POST to your server/topic, priority 3 (warning) / 4 (critical); each account
-  can override the default topic
+  can override the default topic. Optional access token (for a self-hosted server that needs a
+  login) and fallback topic URL, both kept in the macOS Keychain
 - **Toast** — a floating panel top-right with a slide-and-fade animation and a sound
 
 <div align="center">

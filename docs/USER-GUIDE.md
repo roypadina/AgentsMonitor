@@ -224,6 +224,12 @@ showing "Credentials expired" gets a **Repaste…** button right on its row.
 - **Warning / Critical thresholds** — steppers, 1–100%, warning is always kept below critical.
 - **ntfy server** and **default topic** — used by any account with ntfy enabled and no
   per-account override.
+- **Access token (optional)** — for a self-hosted ntfy server that requires a login. Stored in the
+  macOS Keychain and sent as `Authorization: Bearer` only to the server above.
+- **Fallback topic URL (optional)** — a full topic URL such as a public ntfy.sh topic, also kept in
+  the Keychain. If the server does not answer or returns an error, the same alert is posted here.
+  Each message ends with a small footer (sender, flow, event id, log hint); a line with the same
+  event id is written to the app log (subsystem `com.roy.agentsmonitor`).
 - **Notification authorization status** — shows whether macOS notifications are currently
   allowed, with a hint to fix it in System Settings if denied.
 - **Send Test Alert** — pushes a synthetic warning-level alert through all three sinks so you
