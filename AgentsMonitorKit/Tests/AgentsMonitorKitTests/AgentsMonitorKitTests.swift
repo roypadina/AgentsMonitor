@@ -973,3 +973,79 @@ final class HistoryTests: XCTestCase {
                                    limit: session(10, resetsIn: 4.5), now: now))
     }
 }
+
+// MARK: - ntfy auth, footer, fallback
+
+final class NtfyTests: XCTestCase {
+    private let server = URL(string: "https://ntfy.example.test")!
+
+    func testAuthHeaderOnlyToSameOrigin() {
+        let same = URL(string: "https://NTFY.example.test:443/other")!
+        XCTAssertEqual(Ntfy.authorization(token: "tk", target: same, server: server), "Bearer tk")
+        XCTAssertNil(Ntfy.authorization(token: "tk", target: URL(string: "https://ntfy.sh")!, server: server))
+        XCTAssertNil(Ntfy.authorization(token: "tk", target: URL(string: "http://ntfy.example.test")!, server: server))
+        XCTAssertNil(Ntfy.authorization(token: "tk", target: URL(string: "https://ntfy.example.test:8443")!, server: server))
+        XCTAssertNil(Ntfy.authorization(token: nil, target: server, server: server))
+        XCTAssertNil(Ntfy.authorization(token: "", target: server, server: server))
+    }
+
+    func testFooterAndFirstTag() {
+        XCTAssertEqual(Ntfy.tags(["warning"]), ["agents-monitor", "warning"])
+        let body = Ntfy.body("Session at 90%", flow: "session-limit", event: "20261025-101500-7f3a", host: "MacBook")
+        XCTAssertEqual(body, """
+        Session at 90%
+
+        sender: agents-monitor@MacBook
+        flow: session-limit
+        event: 20261025-101500-7f3a
+        log: Console: subsystem com.roy.agentsmonitor
+        """)
+        XCTAssertEqual(Ntfy.shortHost("MacBook.local"), "MacBook")
+    }
+
+    func testEventIdFormat() {
+        let id = Ntfy.eventId()
+        XCTAssertNotNil(id.range(of: #"^\d{8}-\d{6}-[0-9a-f]{4}$"#, options: .regularExpression))
+        XCTAssertEqual(Ntfy.eventId(random: 0xAB).suffix(5), "-00ab")
+    }
+
+    func testFlowFromAlertKey() {
+        XCTAssertEqual(Ntfy.flow(forAlertKey: "session|"), "session-limit")
+        XCTAssertEqual(Ntfy.flow(forAlertKey: "weekly_all|"), "weekly-limit")
+        XCTAssertEqual(Ntfy.flow(forAlertKey: "weekly_scoped|Fable"), "weekly-model-limit")
+        XCTAssertEqual(Ntfy.flow(forAlertKey: "spendBurst"), "extra-usage")
+        XCTAssertEqual(Ntfy.flow(forAlertKey: "test"), "test")
+    }
+
+    func testFallbackDecision() {
+        XCTAssertFalse(Ntfy.shouldFallback(status: 200, hasFallback: true))
+        XCTAssertFalse(Ntfy.shouldFallback(status: 204, hasFallback: true))
+        XCTAssertTrue(Ntfy.shouldFallback(status: 401, hasFallback: true))
+        XCTAssertTrue(Ntfy.shouldFallback(status: 500, hasFallback: true))
+        XCTAssertTrue(Ntfy.shouldFallback(status: nil, hasFallback: true))
+        XCTAssertFalse(Ntfy.shouldFallback(status: 500, hasFallback: false))
+        XCTAssertFalse(Ntfy.shouldFallback(status: nil, hasFallback: false))
+    }
+
+    func testSplitTopicURL() throws {
+        let parts = try XCTUnwrap(Ntfy.splitTopicURL("https://ntfy.sh/some-topic"))
+        XCTAssertEqual(parts.server.absoluteString, "https://ntfy.sh")
+        XCTAssertEqual(parts.topic, "some-topic")
+        XCTAssertNil(Ntfy.splitTopicURL("https://ntfy.sh"))
+        XCTAssertNil(Ntfy.splitTopicURL("not a url"))
+        // Fallback on a different origin than the server never gets the token.
+        XCTAssertNil(Ntfy.authorization(token: "tk", target: parts.server, server: server))
+    }
+
+    /// Secrets live in the Keychain: they must never appear in the persisted settings blob, and a
+    /// pre-token blob must keep decoding.
+    func testSettingsHoldNoSecretsAndOldBlobDecodes() throws {
+        let encoded = String(decoding: try JSONEncoder().encode(Settings()), as: UTF8.self).lowercased()
+        XCTAssertFalse(encoded.contains("token"))
+        XCTAssertFalse(encoded.contains("fallback"))
+        let old = #"{"ntfyServer":"https://ntfy.sh","ntfyDefaultTopic":"t"}"#.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(Settings.self, from: old)
+        XCTAssertEqual(decoded.ntfyServer, "https://ntfy.sh")
+        XCTAssertEqual(decoded.ntfyDefaultTopic, "t")
+    }
+}

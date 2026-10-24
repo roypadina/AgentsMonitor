@@ -335,6 +335,8 @@ struct AccountsTab: View {
 private struct AlertsTab: View {
     private let store = AppStore.shared
     @State private var authStatus: UNAuthorizationStatus = .notDetermined
+    @State private var ntfyToken = ""
+    @State private var ntfyFallbackURL = ""
 
     var body: some View {
         Form {
@@ -351,6 +353,13 @@ private struct AlertsTab: View {
             Section("ntfy") {
                 TextField("Server", text: bindingString(\.ntfyServer))
                 TextField("Default topic", text: bindingString(\.ntfyDefaultTopic))
+                SecureField("Access token (optional)", text: $ntfyToken)
+                    .onSubmit(saveNtfySecrets)
+                SecureField("Fallback topic URL (optional)", text: $ntfyFallbackURL)
+                    .onSubmit(saveNtfySecrets)
+                Text("Token and fallback URL are stored in the macOS Keychain. The token is sent only to the server above. The fallback URL (for example a public ntfy.sh topic) is used when the server does not answer or returns an error.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
             Section("Notifications") {
                 Text("Authorization: \(authStatusText)")
@@ -359,7 +368,17 @@ private struct AlertsTab: View {
             }
         }
         .padding()
-        .onAppear { refreshAuthStatus() }
+        .onAppear {
+            refreshAuthStatus()
+            ntfyToken = Ntfy.secret(.token) ?? ""
+            ntfyFallbackURL = Ntfy.secret(.fallbackURL) ?? ""
+        }
+        .onDisappear(perform: saveNtfySecrets)
+    }
+
+    private func saveNtfySecrets() {
+        Ntfy.setSecret(.token, ntfyToken)
+        Ntfy.setSecret(.fallbackURL, ntfyFallbackURL)
     }
 
     private var extraUsageBinding: Binding<Bool> {
@@ -415,6 +434,7 @@ private struct AlertsTab: View {
     }
 
     private func sendTestAlert() {
+        saveNtfySecrets()
         let alert = AgentsMonitorKit.Alert(
             accountId: UUID(), accountName: "Test", key: "test",
             title: "Agents Monitor test alert",
