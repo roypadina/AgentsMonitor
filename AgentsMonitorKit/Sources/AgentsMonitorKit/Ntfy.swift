@@ -1,5 +1,4 @@
 import Foundation
-import Security
 
 /// Pure helpers for ntfy publishing (auth scoping, message trace footer, fallback decision) plus
 /// the two Keychain items that hold secrets. The network call itself lives in the app's `Notifier`.
@@ -27,8 +26,7 @@ public enum Ntfy {
     public static func setSecret(_ s: Secret, _ value: String) {
         let v = value.trimmingCharacters(in: .whitespacesAndNewlines)
         if v.isEmpty {
-            SecItemDelete([kSecClass as String: kSecClassGenericPassword,
-                           kSecAttrService as String: s.rawValue] as CFDictionary)
+            KeychainService.deleteOwnedPayload(service: s.rawValue)
         } else {
             try? KeychainService.writeOwnedPayload(Data(v.utf8), service: s.rawValue)
         }

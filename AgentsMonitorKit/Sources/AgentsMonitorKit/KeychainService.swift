@@ -140,35 +140,26 @@ public enum KeychainService {
         return Data(text.utf8)
     }
 
-    /// Update-then-Add — delete-then-add left the item partially overwritten (invalid JSON)
-    /// under concurrent refresh in the vendored project. `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`
-    /// on create: no iCloud sync for a live OAuth lineage.
+    /// Always via `/usr/bin/security`, never `SecItemAdd`: with no Team ID an item this app creates
+    /// is tied to this build's cdhash, so every rebuild hits a consent prompt on read. A CLI-created
+    /// item trusts the CLI (partition `apple-tool:`) and `readPayload`'s fallback reads it silently.
+    /// `-U` updates in place (delete-then-add left the item partially overwritten under concurrent
+    /// refresh in the vendored project); `-a ""` matches the account-less items older builds made.
     public static func writeOwnedPayload(_ data: Data, service: String) throws {
-        let matchQuery: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-        ]
-        _ = suppressKeychainUI
-        let updateStatus = SecItemUpdate(matchQuery as CFDictionary, [kSecValueData as String: data] as CFDictionary)
-        if updateStatus == errSecSuccess { return }
-
-        if updateStatus == errSecItemNotFound {
-            var addQuery = matchQuery
-            addQuery[kSecValueData as String] = data
-            addQuery[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-            if SecItemAdd(addQuery as CFDictionary, nil) == errSecSuccess { return }
-        }
-
-        // Post-rebuild an ad-hoc app loses access to items its previous cdhash created
-        // (errSecAuthFailed). `security add-generic-password -U` updates-in-place atomically.
         // ponytail: payload rides argv — visible to local `ps` for milliseconds; same-user ps
         // can already read the same item via the same CLI, no boundary crossed.
         guard let text = String(data: data, encoding: .utf8),
               case .success = try runSecurityCLI(
-                ["add-generic-password", "-U", "-s", service, "-a", "agents-monitor", "-w", text]
+                ["add-generic-password", "-U", "-s", service, "-a", "", "-w", text]
               ) else {
             throw CredentialError.badPayload
         }
+    }
+
+    /// Via the CLI: this build's `SecItemDelete` can't remove a CLI-made item (`errSecInvalidOwnerEdit`).
+    /// One match per call, so loop until none is left (exit 44).
+    public static func deleteOwnedPayload(service: String) {
+        while case .success? = try? runSecurityCLI(["delete-generic-password", "-s", service]) {}
     }
 
     private enum CLIResult {
