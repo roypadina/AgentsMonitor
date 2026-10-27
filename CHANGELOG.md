@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-10-27
+
+### Fixed
+- No more repeated "security wants to use your confidential information" login-password prompts after updates. The keychain items Agents Monitor saves (ntfy access token and fallback URL, remote accounts) are now created through macOS's `security` tool, which every version reads silently. If you already saw the prompt for an item, click **Always Allow** once.
+
 ## [1.6.0] - 2026-10-25
 
 ### Added
