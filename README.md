@@ -85,7 +85,7 @@ Claude Code and the status line in Codex:
   - macOS: `security find-generic-password -s "Claude Code-credentials" -w`
   - Linux: `cat ~/.claude/.credentials.json`
 
-  Remote accounts are Claude-only. Stored in an app-owned keychain item, device-only (no iCloud
+  Remote accounts are Claude-only. Stored in a login-keychain item, device-only (no iCloud
   sync). Agents Monitor refreshes
   these tokens itself once they expire. One caveat: if the source machine's own Claude Code also
   refreshes that lineage, one side loses the race and the card falls back to
@@ -178,6 +178,11 @@ dialog. Agents Monitor suppresses that keychain UI and falls back to Apple-signe
 `/usr/bin/security`, which created Claude Code's items and passes their keychain partition check
 silently — so it works headless, survives rebuilds, and never interrupts you with a password
 prompt. Codex keeps its credentials in a file instead, so that path needs none of this.
+
+The items Agents Monitor saves itself (remote accounts, ntfy access token and fallback URL) are
+created through the same tool, so every new version reads them without a prompt too. Like Claude
+Code's own credentials, they are then readable through `/usr/bin/security` by any process running
+as you.
 
 ## Learn more
 
