@@ -27,7 +27,7 @@ brew install --cask roypadina/tap/agents-monitor
 
 <br>
 
-<img src="docs/screenshots/popover.png" alt="Agents Monitor popover: three Claude accounts and one Codex account, each showing Session/Week/Week · Fable progress bars with severity coloring, a pacing tick and a reset countdown, plus a monthly spend row and recent account switches." width="420">
+<img src="docs/screenshots/popover.png" alt="Agents Monitor popover: three Claude accounts and one Codex account, each showing Session/Week/Week · Fable progress bars with severity coloring, a pacing tick and a reset countdown, plus a monthly spend row." width="420">
 
 </div>
 
@@ -81,7 +81,7 @@ Claude Code and the status line in Codex:
   refresh token on use, so spending it would force `codex login`. An api-key-only login has no
   plan usage behind it and is skipped.
 - **Remote** — an account that lives on a *different* machine. Settings → Accounts → **Add
-  Remote Account…**, then paste the credentials JSON from the source machine:
+  Account → Remote Claude Account…**, then paste the credentials JSON from the source machine:
   - macOS: `security find-generic-password -s "Claude Code-credentials" -w`
   - Linux: `cat ~/.claude/.credentials.json`
 
@@ -170,6 +170,13 @@ open /Applications/AgentsMonitor.app
 > Every line of this app is in this repo — build it yourself if you'd rather not trust a
 > prebuilt binary. See [docs/INSTALL.md](docs/INSTALL.md) for the full walkthrough, including
 > first-run behavior and uninstalling.
+
+## First launch
+
+A welcome window explains where Agents Monitor lives and has an **Open at Login** switch. It is off
+until you turn it on, turning it off sticks, and it needs the app in `/Applications`. Accounts are
+found for you. No icon in the menu bar? Open Agents Monitor again from Applications or Raycast: that
+opens Settings. In the popover, **⌘R** refreshes, **⌘,** opens Settings and **⌘Q** quits.
 
 ## No keychain prompts
 

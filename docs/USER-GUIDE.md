@@ -69,8 +69,9 @@ in as the app runs.
 **Error states**, shown in place of the limit rows when something's wrong with that account:
 see the [Troubleshooting table](#troubleshooting) for what each one means and how to fix it.
 
-**Footer:** last-refresh time, **Refresh** (manual poll, ignores the interval), **Settings**,
-**About**, **Support**, **Quit**.
+**Footer:** last-refresh time, **Refresh** (manual poll, ignores the interval, **⌘R**), **Settings**
+(**⌘,**), **About**, **Support**, **Quit** (**⌘Q**). With 5 or more accounts the cards scroll, so the
+footer stays on screen. With no accounts the popover shows an **Add Account…** button.
 
 ## Accounts
 
@@ -211,7 +212,9 @@ Each toggled per account in Settings → Accounts:
 
 ## Settings
 
-Three tabs, all changes persisted immediately.
+Settings is its own window, with the panes **Accounts**, **Alerts**, **General** and **About** as toolbar tabs, each
+sized to its content. It shows in the Dock and ⌘-Tab while open, reopens on the last pane, and opening
+Agents Monitor again from Applications or Raycast brings it up. All changes are persisted immediately.
 
 **Accounts** — the full account list: rename (the **Rename** button next to each name — an
 inline field, Return or **Save** to commit), per-account **Desktop** and **ntfy** toggles, a
