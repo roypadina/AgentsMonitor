@@ -69,8 +69,9 @@ in as the app runs.
 **Error states**, shown in place of the limit rows when something's wrong with that account:
 see the [Troubleshooting table](#troubleshooting) for what each one means and how to fix it.
 
-**Footer:** last-refresh time, **Refresh** (manual poll, ignores the interval), **Settings**,
-**About**, **Support**, **Quit**.
+**Footer:** last-refresh time, **Refresh** (manual poll, ignores the interval, **⌘R**), **Settings**
+(**⌘,**), **About**, **Support**, **Quit** (**⌘Q**). With 5 or more accounts the cards scroll, so the
+footer stays on screen. With no accounts the popover shows an **Add Account…** button.
 
 ## Accounts
 
@@ -81,7 +82,7 @@ A local account is any `CLAUDE_CONFIG_DIR` that's already logged in to Claude Co
 
 - **Discovery is automatic on first launch:** Agents Monitor checks `~/.claude` and globs
   `~/.claude-*`, adding every directory that has a matching keychain entry. You can add more
-  later from Settings → Accounts → **Add Claude Account…** (folder picker).
+  later from Settings → Accounts → **Add Account → Claude Code Account…** (folder picker).
 - **Naming:** taken from `oauthAccount.emailAddress` (or `organizationName`) in that profile's
   `~/.claude*/.claude.json`. If no label is found, it falls back to the directory name. Rename
   any account from Settings or from the popover.
@@ -101,7 +102,7 @@ default, or `~/.codex-<name>` for an additional profile.
 
 - **Discovery is automatic:** every `~/.codex*` directory holding an `auth.json` with a readable
   ChatGPT token becomes an account. Add a non-standard location later from Settings → Accounts →
-  **Add Codex Account…** (folder picker). A login that only has an API key in it (`auth_mode:
+  **Add Account → Codex Account…** (folder picker). A login that only has an API key in it (`auth_mode:
   apikey`) is skipped — there's no plan usage behind it to report.
 - **Naming:** the signed-in address, read from the claims of the stored `id_token`. Falls back to
   the directory name, and renameable like any other account.
@@ -123,7 +124,7 @@ this Mac at all — typically
 another machine, or a CI box. Agents Monitor owns its credentials entirely: it stores them in
 its own keychain item and refreshes the token itself when it expires.
 
-**To add one:** Settings → Accounts → **Add Remote Account…**, then paste the credentials JSON
+**To add one:** Settings → Accounts → **Add Account → Remote Claude Account…**, then paste the credentials JSON
 from the source machine:
 
 ```bash
@@ -211,13 +212,15 @@ Each toggled per account in Settings → Accounts:
 
 ## Settings
 
-Three tabs, all changes persisted immediately.
+Settings is its own window, with the panes **Accounts**, **Alerts**, **General** and **About** as toolbar tabs, each
+sized to its content. It shows in the Dock and ⌘-Tab while open, reopens on the last pane, and opening
+Agents Monitor again from Applications or Raycast brings it up. All changes are persisted immediately.
 
 **Accounts** — the full account list: rename (the **Rename** button next to each name — an
 inline field, Return or **Save** to commit), per-account **Desktop** and **ntfy** toggles, a
-per-account ntfy topic override, remove, plus **Add Claude Account…** / **Add Codex Account…**
-(folder pickers validated
-against a real keychain entry) and **Add Remote Account…** (paste sheet). A remote account
+per-account ntfy topic override, remove, plus the **Add Account** menu: **Claude Code Account…** /
+**Codex Account…** (folder pickers validated
+against a real keychain entry) and **Remote Claude Account…** (paste sheet). A remote account
 showing "Credentials expired" gets a **Repaste…** button right on its row.
 
 **Alerts:**
@@ -245,9 +248,10 @@ showing "Credentials expired" gets a **Repaste…** button right on its row.
   read as a health signal. Both controls have a live preview of the two providers side by side.
 - **Poll interval** — 30s / 1m / 3m / 5m / 10m. Changing it restarts the poll loop immediately
   with the new interval.
-- **Start at login** — registers/unregisters a `SMAppService` login item. Self-healing: it
-  re-registers automatically if the app bundle moves, and prompts you to approve it in System
-  Settings if macOS requires that.
+- **Open at Login** — registers/unregisters a `SMAppService` login item. Off until you turn it on
+  (in the welcome window or here), and turning it off sticks. Once on it is self-healing: it
+  re-registers automatically if the app bundle moves, and an **Allow in Login Items…** button
+  appears if macOS requires your approval in System Settings.
 - **Show percent in menu bar**, **Toast notifications**, **Sound** — straightforward on/off
   toggles.
 

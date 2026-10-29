@@ -4,22 +4,6 @@ import ServiceManagement
 import UserNotifications
 import AgentsMonitorKit
 
-struct SettingsView: View {
-    var body: some View {
-        TabView {
-            AccountsTab()
-                .tabItem { Label("Accounts", systemImage: "person.2") }
-            AlertsTab()
-                .tabItem { Label("Alerts", systemImage: "bell") }
-            GeneralTab()
-                .tabItem { Label("General", systemImage: "gearshape") }
-            AboutTab()
-                .tabItem { Label("About", systemImage: "info.circle") }
-        }
-        .frame(width: 460, height: 420)
-    }
-}
-
 // MARK: - About tab
 
 enum AboutInfo {
@@ -35,7 +19,7 @@ enum AboutInfo {
     private static var window: NSWindow?
 
     /// Custom window (the standard panel's fixed-height credits box clipped the text).
-    /// Accessory (LSUIElement) apps must activate first.
+    /// Shown through AccessoryWindows: an accessory (LSUIElement) app needs the Dock/menu-bar switch.
     @MainActor static func showWindow() {
         if window == nil {
             let w = NSWindow(contentViewController: NSHostingController(rootView: AboutView()))
@@ -45,8 +29,7 @@ enum AboutInfo {
             w.center()
             window = w
         }
-        NSApp.activate(ignoringOtherApps: true)
-        window?.makeKeyAndOrderFront(nil)
+        if let window { AccessoryWindows.shared.show(window) }
     }
 }
 
@@ -121,8 +104,8 @@ private struct AboutView: View {
     }
 }
 
-/// Settings tab is a fixed 460x420 frame, so keep it compact and defer to the About window.
-private struct AboutTab: View {
+/// Settings tab stays compact and defers to the About window.
+struct AboutTab: View {
     var body: some View {
         VStack(spacing: 10) {
             Image(nsImage: NSApp.applicationIconImage)
@@ -131,6 +114,7 @@ private struct AboutTab: View {
             Text("Version \(AboutInfo.version)").font(.caption).foregroundStyle(.secondary)
             HStack {
                 Button("About Agents Monitor…") { AboutInfo.showWindow() }
+                Button("Welcome Guide…") { WelcomeWindow.show() }
                 Link("Support on Ko-fi ☕", destination: AboutInfo.kofi)
                     .buttonStyle(.borderedProminent)
             }
@@ -162,9 +146,14 @@ struct AccountsTab: View {
             .listStyle(.inset)
 
             HStack {
-                Button("Add Claude Account…") { addClaudeAccount() }
-                Button("Add Codex Account…") { addCodexAccount() }
-                Button("Add Remote Account…") { showAddRemote = true }
+                Menu {
+                    Button("Claude Code Account…") { addClaudeAccount() }
+                    Button("Codex Account…") { addCodexAccount() }
+                    Button("Remote Claude Account…") { showAddRemote = true }
+                } label: {
+                    Label("Add Account", systemImage: "plus")
+                }
+                .fixedSize()
                 Spacer()
             }
         }
@@ -200,10 +189,10 @@ struct AccountsTab: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button(role: .destructive) { remove(account) } label: {
-                    Image(systemName: "trash")
-                }
-                .buttonStyle(.plain)
+                Button("Remove \(account.name)", systemImage: "trash", role: .destructive) { remove(account) }
+                    .labelStyle(.iconOnly)
+                    .buttonStyle(.plain)
+                    .help("Remove account")
             }
             HStack(spacing: 12) {
                 Toggle("Desktop", isOn: binding(for: account, \.desktopAlerts))
@@ -332,7 +321,7 @@ struct AccountsTab: View {
 // MARK: - Alerts tab
 
 @MainActor
-private struct AlertsTab: View {
+struct AlertsTab: View {
     private let store = AppStore.shared
     @State private var authStatus: UNAuthorizationStatus = .notDetermined
     @State private var ntfyToken = ""
@@ -352,10 +341,10 @@ private struct AlertsTab: View {
             }
             Section("ntfy") {
                 TextField("Server", text: bindingString(\.ntfyServer))
-                TextField("Default topic", text: bindingString(\.ntfyDefaultTopic))
-                SecureField("Access token (optional)", text: $ntfyToken)
+                TextField("Default topic", text: bindingString(\.ntfyDefaultTopic), prompt: Text("empty = ntfy off"))
+                SecureField("Access token (optional)", text: $ntfyToken, prompt: Text("optional"))
                     .onSubmit(saveNtfySecrets)
-                SecureField("Fallback topic URL (optional)", text: $ntfyFallbackURL)
+                SecureField("Fallback topic URL (optional)", text: $ntfyFallbackURL, prompt: Text("https://ntfy.sh/…"))
                     .onSubmit(saveNtfySecrets)
                 Text("Token and fallback URL are stored in the macOS Keychain. The token is sent only to the server above. The fallback URL (for example a public ntfy.sh topic) is used when the server does not answer or returns an error.")
                     .font(.caption)
@@ -367,13 +356,17 @@ private struct AlertsTab: View {
                 Button("Send Test Alert") { sendTestAlert() }
             }
         }
-        .padding()
+        .formStyle(.grouped)
         .onAppear {
             refreshAuthStatus()
             ntfyToken = Ntfy.secret(.token) ?? ""
             ntfyFallbackURL = Ntfy.secret(.fallbackURL) ?? ""
         }
         .onDisappear(perform: saveNtfySecrets)
+        // The Settings window is released on close and closing fires no onDisappear: save then too (SET-4).
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { note in
+            if (note.object as? NSWindow)?.contentViewController is SettingsTabs { saveNtfySecrets() }
+        }
     }
 
     private func saveNtfySecrets() {
@@ -451,9 +444,8 @@ private struct AlertsTab: View {
 // MARK: - General tab
 
 @MainActor
-private struct GeneralTab: View {
+struct GeneralTab: View {
     private let store = AppStore.shared
-    @State private var loginOn = LoginItem.isEnabled
 
     private static let pollOptions: [(String, Int)] = [
         ("30s", 30), ("1m", 60), ("3m", 180), ("5m", 300), ("10m", 600),
@@ -467,17 +459,7 @@ private struct GeneralTab: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: 2) {
-                Toggle("Start at login", isOn: $loginOn)
-                    .onChange(of: loginOn) { _, newValue in
-                        LoginItem.setEnabled(newValue)
-                        if newValue { LoginItem.promptForApprovalIfNeeded() }
-                        loginOn = LoginItem.isEnabled
-                    }
-                Text("Login item: \(LoginItem.statusDescription)")
-                    .font(.caption)
-                    .foregroundStyle(LoginItem.status == .requiresApproval ? Color.orange : .secondary)
-            }
+            LaunchAtLoginToggle()
 
             Section("Accounts") {
                 Picker("Provider badge", selection: badgeBinding) {
@@ -537,8 +519,7 @@ private struct GeneralTab: View {
             Toggle("Toast notifications", isOn: bindingBool(\.toastEnabled))
             Toggle("Sound", isOn: bindingBool(\.soundEnabled))
         }
-        .padding()
-        .onAppear { loginOn = LoginItem.isEnabled }
+        .formStyle(.grouped)
     }
 
     private var badgeBinding: Binding<ProviderBadgeStyle> {
@@ -598,6 +579,7 @@ struct RemoteCredentialsSheet: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
             TextEditor(text: $pasted)
                 .font(.system(.body, design: .monospaced))
                 .frame(height: 140)
@@ -675,38 +657,28 @@ struct RemoteCredentialsSheet: View {
 /// What registration action a launch needs, given current state.
 enum LoginRegisterDecision: Equatable {
     case none             // already registered for this path — nothing to do
-    case register         // not registered yet — register now
-    case reRegisterMoved  // registration lost or bundle moved — re-register
+    case register         // was on, registration lost — register again
+    case reRegisterMoved  // bundle moved (or registration lost) — re-register
 }
 
-/// Wraps the "start at login" login-item registration. Self-heals: re-registers
-/// automatically when the app bundle moves or the registration is lost, and
-/// prompts the user when macOS needs their approval.
+/// Wraps the "open at login" login-item registration. Self-heals: re-registers
+/// automatically when the app bundle moves or the registration is lost. Never turns
+/// it on by itself — LaunchAtLoginToggle (Welcome, Settings > General) is the opt-in.
 enum LoginItem {
 
     private static let pathKey = "registeredBundlePath"
 
     static var status: SMAppService.Status { SMAppService.mainApp.status }
-    static var isEnabled: Bool { status == .enabled }
-
-    static var statusDescription: String {
-        switch status {
-        case .enabled:          return "Enabled"
-        case .requiresApproval: return "Needs your approval in System Settings"
-        case .notRegistered:    return "Not registered"
-        case .notFound:         return "App not found — will re-register"
-        @unknown default:       return "Unknown"
-        }
-    }
 
     /// Pure decision (unit-tested in LanGuard's original). A `nil` stored path while already
-    /// enabled means "first time we're recording it" -> no re-register.
+    /// enabled means "first time we're recording it" -> no re-register. A `nil` stored path
+    /// while not registered means the user never turned it on, or turned it off -> leave it off.
     static func decide(status: SMAppService.Status, storedPath: String?, currentPath: String) -> LoginRegisterDecision {
         switch status {
         case .notRegistered:
-            return .register
+            return storedPath != nil ? .register : .none
         case .notFound:
-            return .reRegisterMoved
+            return storedPath != nil ? .reRegisterMoved : .none
         case .enabled, .requiresApproval:
             return (storedPath == currentPath || storedPath == nil) ? .none : .reRegisterMoved
         @unknown default:
@@ -714,9 +686,9 @@ enum LoginItem {
         }
     }
 
-    /// Ensure the login item is registered for the CURRENT bundle path. Called on every
-    /// launch — auto-registers on first run, re-registers if the app moved or the
-    /// registration was lost.
+    /// Ensure an item the user turned on is registered for the CURRENT bundle path. Called on
+    /// every launch — re-registers if the app moved or the registration was lost; does nothing
+    /// for an item that is off.
     @discardableResult
     static func ensureRegistered() -> LoginRegisterDecision {
         let current = Bundle.main.bundlePath
@@ -745,7 +717,7 @@ enum LoginItem {
         }
     }
 
-    /// Manual toggle from Settings.
+    /// From the Open at Login toggle.
     @discardableResult
     static func setEnabled(_ enabled: Bool) -> Bool {
         let defaults = UserDefaults.standard
@@ -761,20 +733,6 @@ enum LoginItem {
         } catch {
             NSLog("AgentsMonitor: login item \(enabled ? "register" : "unregister") failed: \(error)")
             return false
-        }
-    }
-
-    /// If macOS requires the user to approve the login item, prompt + open Settings.
-    static func promptForApprovalIfNeeded() {
-        guard status == .requiresApproval else { return }
-        NSApp.activate(ignoringOtherApps: true)
-        let alert = NSAlert()
-        alert.messageText = "Agents Monitor needs approval to start at login"
-        alert.informativeText = "macOS disabled Agents Monitor's login item. Open Login Items settings and switch it back on so it launches automatically."
-        alert.addButton(withTitle: "Open Login Items Settings")
-        alert.addButton(withTitle: "Later")
-        if alert.runModal() == .alertFirstButtonReturn {
-            SMAppService.openSystemSettingsLoginItems()
         }
     }
 }

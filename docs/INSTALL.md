@@ -85,7 +85,10 @@ history live in `defaults`, so reinstalling and clearing quarantine brings it al
 ## First run
 
 1. **No Dock icon.** Agents Monitor is a menu-bar-only app (`LSUIElement`); look for the gauge
-   icon in the menu bar.
+   icon in the menu bar. A **welcome window** opens on first launch (once after updating from an
+   older version too) with an **Open at Login** switch, off until you turn it on. Reopen it from
+   Settings → About → **Welcome Guide…**. If the icon is hidden, open Agents Monitor again from
+   Applications or Raycast: that opens Settings.
 2. **Accounts are auto-discovered.** Agents Monitor checks `~/.claude` and any `~/.claude-*`
    directory for a matching keychain entry, and `~/.codex` and any `~/.codex-*` directory for a
    readable `auth.json`, adding every one it finds — named from that profile's email/org in its
@@ -118,8 +121,8 @@ brew uninstall --cask agents-monitor
 rm -rf /Applications/AgentsMonitor.app
 ```
 
-Also remove it from **System Settings → General → Login Items** if you enabled "Start at
-login" and it's still listed there.
+Also remove it from **System Settings → General → Login Items** if you enabled "Open at
+Login" and it's still listed there.
 
 To forget all settings and accounts (optional — this does not touch your actual Claude Code or
 Codex login, only Agents Monitor's own state):

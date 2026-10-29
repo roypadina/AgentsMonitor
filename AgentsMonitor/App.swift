@@ -13,10 +13,10 @@ struct AgentsMonitorApp: App {
             MenuBarLabel()
         }
         .menuBarExtraStyle(.window)
-
-        // Qualified: AgentsMonitorKit also exports a `Settings` type (persisted app settings).
-        SwiftUI.Settings {
-            SettingsView()
+        .commands {  // App menu while a window is open (policy .regular)
+            CommandGroup(replacing: .appSettings) {
+                Button("Settings…") { SettingsWindow.shared.show() }.keyboardShortcut(",")
+            }
         }
     }
 }
@@ -31,6 +31,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         store.bootstrap()
         LoginItem.ensureRegistered()
 
+        // First launch only (MBX-18). Existing users see it once after the update.
+        if !UserDefaults.standard.bool(forKey: "didShowWelcome") {
+            UserDefaults.standard.set(true, forKey: "didShowWelcome")
+            WelcomeWindow.show()
+        }
+
         // Notification authorization must be requested no earlier than this callback.
         let center = UNUserNotificationCenter.current()
         center.delegate = self
@@ -41,6 +47,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         }
 
         store.startPolling()
+    }
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+
+    /// Opening Agents Monitor again (Finder, Raycast) shows Settings: the way in when the icon is hidden (MBX-8).
+    @MainActor func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag { SettingsWindow.shared.show() }
+        return true
     }
 
     /// Without this, banners are suppressed while the app is frontmost (e.g. Settings open).

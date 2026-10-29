@@ -15,17 +15,15 @@ struct PopoverView: View {
         VStack(spacing: 0) {
             if store.accounts.isEmpty {
                 emptyState
-            } else {
-                // Plain VStack — a ScrollView collapses to zero height inside a
+            } else if store.accounts.count < 5 {
+                // Plain VStack — a bare ScrollView collapses to zero height inside a
                 // MenuBarExtra window (content-sized, no space to fill).
-                VStack(spacing: 10) {
-                    ForEach(store.accounts) { account in
-                        AccountCard(account: account, state: store.states[account.id] ?? .idle) {
-                            repasteAccount = account
-                        }
-                    }
-                }
-                .padding(12)
+                cards
+            } else {
+                // From 5 accounts the cards outgrow the screen and push the footer (Settings, Quit)
+                // off it. An explicit height is what keeps the ScrollView from collapsing.
+                ScrollView { cards }
+                    .frame(height: min(860, (NSScreen.main?.visibleFrame.height ?? 900) - 120))
             }
             Divider()
             footer
@@ -39,13 +37,24 @@ struct PopoverView: View {
         }
     }
 
+    private var cards: some View {
+        VStack(spacing: 10) {
+            ForEach(store.accounts) { account in
+                AccountCard(account: account, state: store.states[account.id] ?? .idle) {
+                    repasteAccount = account
+                }
+            }
+        }
+        .padding(12)
+    }
+
     private var emptyState: some View {
-        VStack(spacing: 8) {
-            Image(systemName: "person.crop.circle.badge.plus")
-                .font(.largeTitle)
-                .foregroundStyle(.secondary)
-            Text("No accounts yet").font(.headline)
-            Text("Add one from Settings.").font(.caption).foregroundStyle(.secondary)
+        ContentUnavailableView {
+            Label("No accounts yet", systemImage: "person.crop.circle.badge.plus")
+        } description: {
+            Text("Agents Monitor looks for Claude Code and Codex logins on this Mac.")
+        } actions: {
+            Button("Add Account…") { SettingsWindow.shared.show() }
         }
         .frame(maxWidth: .infinity)
         .padding(24)
@@ -73,12 +82,16 @@ struct PopoverView: View {
             // Natural width: squeezed, the bordered buttons truncated to "Refr…", "Setti…".
             HStack(spacing: 8) {
                 Button("Refresh") { Task { await store.refresh() } }
+                    .keyboardShortcut("r")
                     .disabled(store.isRefreshing)
                     .accessibilityLabel("Refresh")
-                OpenSettingsButton()
+                Button("Settings") { SettingsWindow.shared.show() }
+                    .keyboardShortcut(",")
+                    .accessibilityLabel("Settings")
                 Button("About") { AboutInfo.showWindow() }
                 Button("Support ☕") { NSWorkspace.shared.open(AboutInfo.kofi) }
                 Button("Quit") { NSApplication.shared.terminate(nil) }
+                    .keyboardShortcut("q")
                     .accessibilityLabel("Quit")
             }
             .fixedSize()
@@ -184,7 +197,7 @@ private struct AccountCard: View {
         case .stale(let snapshot, let error):
             snapshotRows(snapshot)
             Text(error)
-                .font(.caption2).foregroundStyle(.orange)
+                .font(.caption2).foregroundStyle(.secondary)
 
         case .notLoggedIn:
             statusLine("Not logged in", systemImage: "person.crop.circle.badge.questionmark", color: .secondary)
@@ -213,10 +226,14 @@ private struct AccountCard: View {
         }
     }
 
+    /// Only the symbol is tinted: 11 pt orange/red text is under 4.5:1 on the light card (CLR-5).
     private func statusLine(_ text: String, systemImage: String, color: Color) -> some View {
-        Label(text, systemImage: systemImage)
-            .font(.caption)
-            .foregroundStyle(color)
+        Label {
+            Text(text).foregroundStyle(color == .secondary ? Color.secondary : Color.primary)
+        } icon: {
+            Image(systemName: systemImage).foregroundStyle(color)
+        }
+        .font(.caption)
     }
 
     @ViewBuilder
@@ -304,7 +321,8 @@ private struct LimitRow: View {
                 HStack(spacing: 4) {
                     Text("resets in \(Self.countdown(to: resetsAt))").foregroundStyle(.secondary)
                     if let full {
-                        Text("· full in ~\(Self.countdown(to: full)) at this pace").foregroundStyle(.orange)
+                        Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
+                        Text("full in ~\(Self.countdown(to: full)) at this pace").foregroundStyle(.secondary)
                     }
                 }
                 .font(.caption2)
