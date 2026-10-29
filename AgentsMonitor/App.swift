@@ -31,6 +31,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         store.bootstrap()
         LoginItem.ensureRegistered()
 
+        // First launch only (MBX-18). Existing users see it once after the update.
+        if !UserDefaults.standard.bool(forKey: "didShowWelcome") {
+            UserDefaults.standard.set(true, forKey: "didShowWelcome")
+            WelcomeWindow.show()
+        }
+
         // Notification authorization must be requested no earlier than this callback.
         let center = UNUserNotificationCenter.current()
         center.delegate = self

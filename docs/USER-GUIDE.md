@@ -245,9 +245,10 @@ showing "Credentials expired" gets a **Repaste…** button right on its row.
   read as a health signal. Both controls have a live preview of the two providers side by side.
 - **Poll interval** — 30s / 1m / 3m / 5m / 10m. Changing it restarts the poll loop immediately
   with the new interval.
-- **Start at login** — registers/unregisters a `SMAppService` login item. Self-healing: it
-  re-registers automatically if the app bundle moves, and prompts you to approve it in System
-  Settings if macOS requires that.
+- **Open at Login** — registers/unregisters a `SMAppService` login item. Off until you turn it on
+  (in the welcome window or here), and turning it off sticks. Once on it is self-healing: it
+  re-registers automatically if the app bundle moves, and an **Allow in Login Items…** button
+  appears if macOS requires your approval in System Settings.
 - **Show percent in menu bar**, **Toast notifications**, **Sound** — straightforward on/off
   toggles.
 

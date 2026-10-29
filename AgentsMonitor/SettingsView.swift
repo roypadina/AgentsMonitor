@@ -114,6 +114,7 @@ struct AboutTab: View {
             Text("Version \(AboutInfo.version)").font(.caption).foregroundStyle(.secondary)
             HStack {
                 Button("About Agents Monitor…") { AboutInfo.showWindow() }
+                Button("Welcome Guide…") { WelcomeWindow.show() }
                 Link("Support on Ko-fi ☕", destination: AboutInfo.kofi)
                     .buttonStyle(.borderedProminent)
             }
@@ -445,7 +446,6 @@ struct AlertsTab: View {
 @MainActor
 struct GeneralTab: View {
     private let store = AppStore.shared
-    @State private var loginOn = LoginItem.isEnabled
 
     private static let pollOptions: [(String, Int)] = [
         ("30s", 30), ("1m", 60), ("3m", 180), ("5m", 300), ("10m", 600),
@@ -459,17 +459,7 @@ struct GeneralTab: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: 2) {
-                Toggle("Start at login", isOn: $loginOn)
-                    .onChange(of: loginOn) { _, newValue in
-                        LoginItem.setEnabled(newValue)
-                        if newValue { LoginItem.promptForApprovalIfNeeded() }
-                        loginOn = LoginItem.isEnabled
-                    }
-                Text("Login item: \(LoginItem.statusDescription)")
-                    .font(.caption)
-                    .foregroundStyle(LoginItem.status == .requiresApproval ? Color.orange : .secondary)
-            }
+            LaunchAtLoginToggle()
 
             Section("Accounts") {
                 Picker("Provider badge", selection: badgeBinding) {
@@ -530,7 +520,6 @@ struct GeneralTab: View {
             Toggle("Sound", isOn: bindingBool(\.soundEnabled))
         }
         .formStyle(.grouped)
-        .onAppear { loginOn = LoginItem.isEnabled }
     }
 
     private var badgeBinding: Binding<ProviderBadgeStyle> {
@@ -668,38 +657,28 @@ struct RemoteCredentialsSheet: View {
 /// What registration action a launch needs, given current state.
 enum LoginRegisterDecision: Equatable {
     case none             // already registered for this path — nothing to do
-    case register         // not registered yet — register now
-    case reRegisterMoved  // registration lost or bundle moved — re-register
+    case register         // was on, registration lost — register again
+    case reRegisterMoved  // bundle moved (or registration lost) — re-register
 }
 
-/// Wraps the "start at login" login-item registration. Self-heals: re-registers
-/// automatically when the app bundle moves or the registration is lost, and
-/// prompts the user when macOS needs their approval.
+/// Wraps the "open at login" login-item registration. Self-heals: re-registers
+/// automatically when the app bundle moves or the registration is lost. Never turns
+/// it on by itself — LaunchAtLoginToggle (Welcome, Settings > General) is the opt-in.
 enum LoginItem {
 
     private static let pathKey = "registeredBundlePath"
 
     static var status: SMAppService.Status { SMAppService.mainApp.status }
-    static var isEnabled: Bool { status == .enabled }
-
-    static var statusDescription: String {
-        switch status {
-        case .enabled:          return "Enabled"
-        case .requiresApproval: return "Needs your approval in System Settings"
-        case .notRegistered:    return "Not registered"
-        case .notFound:         return "App not found — will re-register"
-        @unknown default:       return "Unknown"
-        }
-    }
 
     /// Pure decision (unit-tested in LanGuard's original). A `nil` stored path while already
-    /// enabled means "first time we're recording it" -> no re-register.
+    /// enabled means "first time we're recording it" -> no re-register. A `nil` stored path
+    /// while not registered means the user never turned it on, or turned it off -> leave it off.
     static func decide(status: SMAppService.Status, storedPath: String?, currentPath: String) -> LoginRegisterDecision {
         switch status {
         case .notRegistered:
-            return .register
+            return storedPath != nil ? .register : .none
         case .notFound:
-            return .reRegisterMoved
+            return storedPath != nil ? .reRegisterMoved : .none
         case .enabled, .requiresApproval:
             return (storedPath == currentPath || storedPath == nil) ? .none : .reRegisterMoved
         @unknown default:
@@ -707,9 +686,9 @@ enum LoginItem {
         }
     }
 
-    /// Ensure the login item is registered for the CURRENT bundle path. Called on every
-    /// launch — auto-registers on first run, re-registers if the app moved or the
-    /// registration was lost.
+    /// Ensure an item the user turned on is registered for the CURRENT bundle path. Called on
+    /// every launch — re-registers if the app moved or the registration was lost; does nothing
+    /// for an item that is off.
     @discardableResult
     static func ensureRegistered() -> LoginRegisterDecision {
         let current = Bundle.main.bundlePath
@@ -738,7 +717,7 @@ enum LoginItem {
         }
     }
 
-    /// Manual toggle from Settings.
+    /// From the Open at Login toggle.
     @discardableResult
     static func setEnabled(_ enabled: Bool) -> Bool {
         let defaults = UserDefaults.standard
@@ -754,20 +733,6 @@ enum LoginItem {
         } catch {
             NSLog("AgentsMonitor: login item \(enabled ? "register" : "unregister") failed: \(error)")
             return false
-        }
-    }
-
-    /// If macOS requires the user to approve the login item, prompt + open Settings.
-    static func promptForApprovalIfNeeded() {
-        guard status == .requiresApproval else { return }
-        NSApp.activate(ignoringOtherApps: true)
-        let alert = NSAlert()
-        alert.messageText = "Agents Monitor needs approval to start at login"
-        alert.informativeText = "macOS disabled Agents Monitor's login item. Open Login Items settings and switch it back on so it launches automatically."
-        alert.addButton(withTitle: "Open Login Items Settings")
-        alert.addButton(withTitle: "Later")
-        if alert.runModal() == .alertFirstButtonReturn {
-            SMAppService.openSystemSettingsLoginItems()
         }
     }
 }
