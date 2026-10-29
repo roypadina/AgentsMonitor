@@ -4,22 +4,6 @@ import ServiceManagement
 import UserNotifications
 import AgentsMonitorKit
 
-struct SettingsView: View {
-    var body: some View {
-        TabView {
-            AccountsTab()
-                .tabItem { Label("Accounts", systemImage: "person.2") }
-            AlertsTab()
-                .tabItem { Label("Alerts", systemImage: "bell") }
-            GeneralTab()
-                .tabItem { Label("General", systemImage: "gearshape") }
-            AboutTab()
-                .tabItem { Label("About", systemImage: "info.circle") }
-        }
-        .frame(width: 460, height: 420)
-    }
-}
-
 // MARK: - About tab
 
 enum AboutInfo {
@@ -35,7 +19,7 @@ enum AboutInfo {
     private static var window: NSWindow?
 
     /// Custom window (the standard panel's fixed-height credits box clipped the text).
-    /// Accessory (LSUIElement) apps must activate first.
+    /// Shown through AccessoryWindows: an accessory (LSUIElement) app needs the Dock/menu-bar switch.
     @MainActor static func showWindow() {
         if window == nil {
             let w = NSWindow(contentViewController: NSHostingController(rootView: AboutView()))
@@ -45,8 +29,7 @@ enum AboutInfo {
             w.center()
             window = w
         }
-        NSApp.activate(ignoringOtherApps: true)
-        window?.makeKeyAndOrderFront(nil)
+        if let window { AccessoryWindows.shared.show(window) }
     }
 }
 
@@ -121,8 +104,8 @@ private struct AboutView: View {
     }
 }
 
-/// Settings tab is a fixed 460x420 frame, so keep it compact and defer to the About window.
-private struct AboutTab: View {
+/// Settings tab stays compact and defers to the About window.
+struct AboutTab: View {
     var body: some View {
         VStack(spacing: 10) {
             Image(nsImage: NSApp.applicationIconImage)
@@ -162,9 +145,14 @@ struct AccountsTab: View {
             .listStyle(.inset)
 
             HStack {
-                Button("Add Claude Account…") { addClaudeAccount() }
-                Button("Add Codex Account…") { addCodexAccount() }
-                Button("Add Remote Account…") { showAddRemote = true }
+                Menu {
+                    Button("Claude Code Account…") { addClaudeAccount() }
+                    Button("Codex Account…") { addCodexAccount() }
+                    Button("Remote Claude Account…") { showAddRemote = true }
+                } label: {
+                    Label("Add Account", systemImage: "plus")
+                }
+                .fixedSize()
                 Spacer()
             }
         }
@@ -200,10 +188,10 @@ struct AccountsTab: View {
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button(role: .destructive) { remove(account) } label: {
-                    Image(systemName: "trash")
-                }
-                .buttonStyle(.plain)
+                Button("Remove \(account.name)", systemImage: "trash", role: .destructive) { remove(account) }
+                    .labelStyle(.iconOnly)
+                    .buttonStyle(.plain)
+                    .help("Remove account")
             }
             HStack(spacing: 12) {
                 Toggle("Desktop", isOn: binding(for: account, \.desktopAlerts))
@@ -332,7 +320,7 @@ struct AccountsTab: View {
 // MARK: - Alerts tab
 
 @MainActor
-private struct AlertsTab: View {
+struct AlertsTab: View {
     private let store = AppStore.shared
     @State private var authStatus: UNAuthorizationStatus = .notDetermined
     @State private var ntfyToken = ""
@@ -367,13 +355,17 @@ private struct AlertsTab: View {
                 Button("Send Test Alert") { sendTestAlert() }
             }
         }
-        .padding()
+        .formStyle(.grouped)
         .onAppear {
             refreshAuthStatus()
             ntfyToken = Ntfy.secret(.token) ?? ""
             ntfyFallbackURL = Ntfy.secret(.fallbackURL) ?? ""
         }
         .onDisappear(perform: saveNtfySecrets)
+        // The Settings window is released on close and closing fires no onDisappear: save then too (SET-4).
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { note in
+            if (note.object as? NSWindow)?.contentViewController is SettingsTabs { saveNtfySecrets() }
+        }
     }
 
     private func saveNtfySecrets() {
@@ -451,7 +443,7 @@ private struct AlertsTab: View {
 // MARK: - General tab
 
 @MainActor
-private struct GeneralTab: View {
+struct GeneralTab: View {
     private let store = AppStore.shared
     @State private var loginOn = LoginItem.isEnabled
 
@@ -537,7 +529,7 @@ private struct GeneralTab: View {
             Toggle("Toast notifications", isOn: bindingBool(\.toastEnabled))
             Toggle("Sound", isOn: bindingBool(\.soundEnabled))
         }
-        .padding()
+        .formStyle(.grouped)
         .onAppear { loginOn = LoginItem.isEnabled }
     }
 
@@ -598,6 +590,7 @@ struct RemoteCredentialsSheet: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+                .textSelection(.enabled)
             TextEditor(text: $pasted)
                 .font(.system(.body, design: .monospaced))
                 .frame(height: 140)

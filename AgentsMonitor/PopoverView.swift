@@ -75,7 +75,8 @@ struct PopoverView: View {
                 Button("Refresh") { Task { await store.refresh() } }
                     .disabled(store.isRefreshing)
                     .accessibilityLabel("Refresh")
-                OpenSettingsButton()
+                Button("Settings") { SettingsWindow.shared.show() }
+                    .accessibilityLabel("Settings")
                 Button("About") { AboutInfo.showWindow() }
                 Button("Support ☕") { NSWorkspace.shared.open(AboutInfo.kofi) }
                 Button("Quit") { NSApplication.shared.terminate(nil) }
