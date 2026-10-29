@@ -7,8 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0] - 2026-10-30
+
 ### Added
-- A welcome window on first launch (and **Welcome Guide…** in Settings > About): why Agents Monitor exists, where it lives, and the Open at Login switch.
+- A welcome window on first launch (shown once after updating too, and **Welcome Guide…** in Settings > About): why Agents Monitor exists, where it lives, and the Open at Login switch.
 - Opening Agents Monitor again from Applications or Raycast opens Settings, so there is a way in when the menu bar icon is hidden.
 - The empty popover has an **Add Account…** button.
 - Keyboard shortcuts in the popover: ⌘R Refresh, ⌘, Settings, ⌘Q Quit.
