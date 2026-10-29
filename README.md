@@ -280,6 +280,7 @@ Free, open-source Mac menu-bar apps and terminal tools, all on one site: **[apps
 - [AgentsSessionHopper](https://apps.roypadina.synology.me/apps/agents-session-hopper/) — Profiles for Claude Code. One conversation, any of your accounts.
 - [agentctl](https://apps.roypadina.synology.me/apps/agentctl/) — Find and resume any Claude Code or Codex session from one terminal menu.
 - [claude-jam](https://apps.roypadina.synology.me/apps/claude-jam/) — Share one real Claude Code session with other humans.
+- [PullPing](https://apps.roypadina.synology.me/apps/pullping/) — Know when your pull requests need you, across every GitHub account.
 
 ## Support
 
