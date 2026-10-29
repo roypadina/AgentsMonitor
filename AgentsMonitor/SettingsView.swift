@@ -341,10 +341,10 @@ struct AlertsTab: View {
             }
             Section("ntfy") {
                 TextField("Server", text: bindingString(\.ntfyServer))
-                TextField("Default topic", text: bindingString(\.ntfyDefaultTopic))
-                SecureField("Access token (optional)", text: $ntfyToken)
+                TextField("Default topic", text: bindingString(\.ntfyDefaultTopic), prompt: Text("empty = ntfy off"))
+                SecureField("Access token (optional)", text: $ntfyToken, prompt: Text("optional"))
                     .onSubmit(saveNtfySecrets)
-                SecureField("Fallback topic URL (optional)", text: $ntfyFallbackURL)
+                SecureField("Fallback topic URL (optional)", text: $ntfyFallbackURL, prompt: Text("https://ntfy.sh/…"))
                     .onSubmit(saveNtfySecrets)
                 Text("Token and fallback URL are stored in the macOS Keychain. The token is sent only to the server above. The fallback URL (for example a public ntfy.sh topic) is used when the server does not answer or returns an error.")
                     .font(.caption)

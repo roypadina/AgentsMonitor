@@ -35,10 +35,10 @@ final class SettingsWindow {
             let tabs = SettingsTabs()
             tabs.tabStyle = .toolbar
             // Each pane gets its own height (SET-8): grouped forms have no intrinsic height. Measured offscreen:
-            // Alerts needs ~670 and General ~770, so General scrolls its last rows on a short screen.
+            // Alerts needs ~670 and General ~760 (both fit below).
             add(tabs, "Accounts", "person.2", AccountsTab(), height: 420)
             add(tabs, "Alerts", "bell", AlertsTab(), height: 680)
-            add(tabs, "General", "gearshape", GeneralTab(), height: 700)
+            add(tabs, "General", "gearshape", GeneralTab(), height: 760)
             add(tabs, "About", "info.circle", AboutTab(), height: 300)
             if let last = UserDefaults.standard.string(forKey: SettingsTabs.lastTabKey),  // reopen on the last pane (SET-3)
                let index = tabs.tabViewItems.firstIndex(where: { $0.label == last }) {
