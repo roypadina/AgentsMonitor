@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- A welcome window on first launch (and **Welcome Guide…** in Settings > About): why Agents Monitor exists, where it lives, and the Open at Login switch.
+- Opening Agents Monitor again from Applications or Raycast opens Settings, so there is a way in when the menu bar icon is hidden.
+- The empty popover has an **Add Account…** button.
+- Keyboard shortcuts in the popover: ⌘R Refresh, ⌘, Settings, ⌘Q Quit.
+
+### Changed
+- Settings is its own window with a toolbar of tabs, each sized to its content (Alerts and General are no longer cut off), and it shows in the Dock and ⌘-Tab while open.
+- **Add Account** is one menu (Claude Code, Codex, Remote Claude) instead of three truncated buttons.
+- With 5 or more accounts the popover scrolls instead of growing off the screen, so Settings and Quit stay reachable.
+- Status and warning text in the popover is easier to read on the light background; only the symbols keep the orange/red colour.
+- The repaste hint (the Terminal commands) can be selected and copied.
+
+### Fixed
+- Open at Login is no longer switched on by itself at first launch, and turning it off now sticks. It is a switch in the welcome window and Settings > General.
+- The ntfy access token and fallback URL are saved when the Settings window is closed, not only on Return or tab change.
+- The remove-account button has a name for VoiceOver and a tooltip.
+
 ## [1.6.1] - 2026-10-27
 
 ### Fixed
