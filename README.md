@@ -21,6 +21,10 @@ from under you.
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?logo=opensourceinitiative&logoColor=white)](LICENSE)
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-support-F16061?logo=ko-fi&logoColor=white)](https://ko-fi.com/roypadina)
 
+<br>
+
+<img src="docs/demo.gif" alt="Agents Monitor in action: usage dots and numbers in the menu bar, a click opens limit bars and reset times, a card flips to its usage graph, and a toast warns when Codex crosses its limit." width="720">
+
 ```bash
 brew install --cask roypadina/tap/agents-monitor
 ```
