@@ -181,6 +181,8 @@ private struct AccountCard: View {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .font(.caption2)
                     .foregroundStyle(.orange)
+                    .help("Showing the last known numbers")
+                    .accessibilityLabel("Numbers out of date")
             }
         }
     }
@@ -196,7 +198,9 @@ private struct AccountCard: View {
 
         case .stale(let snapshot, let error):
             snapshotRows(snapshot)
-            Text(error)
+            // The numbers can predate this launch (seeded from disk), so say how old they are.
+            Text(Date().timeIntervalSince(snapshot.fetchedAt) < 60 ? error
+                 : "\(error) · numbers from \(snapshot.fetchedAt.formatted(.relative(presentation: .numeric)))")
                 .font(.caption2).foregroundStyle(.secondary)
 
         case .notLoggedIn:

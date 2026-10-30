@@ -30,6 +30,14 @@ public enum Provider: String, Codable, CaseIterable, Hashable, Sendable {
         }
     }
 
+    /// Who runs the usage endpoint — the name the error lines use ("Can't reach Anthropic").
+    public var company: String {
+        switch self {
+        case .claude: return "Anthropic"
+        case .codex: return "OpenAI"
+        }
+    }
+
     /// Directory prefix its CLI keeps per-profile config in: `~/.claude*`, `~/.codex*`.
     var configDirPrefix: String {
         switch self {

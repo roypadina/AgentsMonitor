@@ -8,6 +8,7 @@ public struct UsageSample: Codable, Sendable, Hashable {
     public let id: UUID                  // Account.id
     public let p: [String: Int]          // LimitInfo.label -> percent: "Session", "Week", "Week · Fable"
     public let spend: Int?               // extra usage used so far, minor units
+    public let r: [String: Double]?      // LimitInfo.label -> resets at, epoch seconds (1.7.2+)
 
     public var date: Date { Date(timeIntervalSince1970: t) }
 
@@ -18,6 +19,32 @@ public struct UsageSample: Codable, Sendable, Hashable {
         id = account
         p = snapshot.limits.reduce(into: [:]) { $0[$1.label] = $1.percent }
         spend = snapshot.spend.flatMap { $0.enabled ? $0.usedMinor : nil }
+        let resets = snapshot.limits.reduce(into: [String: Double]()) { $0[$1.label] = $1.resetsAt?.timeIntervalSince1970 }
+        r = resets.isEmpty ? nil : resets
+    }
+}
+
+extension UsageSnapshot {
+    /// A sample turned back into rows. It keeps percentages and (since 1.7.2) reset times, so
+    /// spend is unknown and severity is graded locally, as for Codex.
+    init(sample: UsageSample) {
+        func kindAndModel(_ label: String) -> (String, String?) {
+            switch label {
+            case "Session": return ("session", nil)
+            case "Week": return ("weekly_all", nil)
+            case let l where l.hasPrefix("Week · "): return ("weekly_scoped", String(l.dropFirst("Week · ".count)))
+            default: return (label.lowercased().replacingOccurrences(of: " ", with: "_"), nil)
+            }
+        }
+        let order = ["session": 0, "weekly_all": 1, "weekly_scoped": 2]
+        let limits = sample.p.map { label, percent -> LimitInfo in
+            let (kind, model) = kindAndModel(label)
+            return LimitInfo(kind: kind, group: nil, percent: percent,
+                             severity: UsageSnapshot.codexSeverity(percent: percent),
+                             resetsAt: sample.r?[label].map(Date.init(timeIntervalSince1970:)),
+                             modelDisplayName: model, isActive: true)
+        }.sorted { (order[$0.kind] ?? 3, $0.label) < (order[$1.kind] ?? 3, $1.label) }
+        self.init(limits: limits, spend: nil, fetchedAt: sample.date)
     }
 }
 
@@ -25,7 +52,7 @@ public struct UsageSample: Codable, Sendable, Hashable {
 ///
 ///     ~/Library/Application Support/AgentsMonitor/history.jsonl
 ///
-/// About 100 bytes per account per poll; lines older than `keepDays` are dropped at launch.
+/// About 150 bytes per account per poll; lines older than `keepDays` are dropped at launch.
 public struct UsageHistory: Sendable {
     public static let keepDays = 90
     /// At most one sample per account this often, whatever the poll interval is set to.

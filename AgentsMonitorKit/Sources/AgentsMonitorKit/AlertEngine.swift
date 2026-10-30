@@ -91,7 +91,7 @@ public struct AlertEngine {
     /// Mutates internal de-dupe memory. Pure w.r.t. everything else.
     public mutating func evaluate(account: Account, state: AccountState, now: Date = Date()) -> [Alert] {
         switch state {
-        case .ok(let snapshot), .stale(let snapshot, _):
+        case .ok(let snapshot):
             var candidates = snapshot.limits
             if let spendLimit = snapshot.spend?.asLimitInfo { candidates.append(spendLimit) }
             var alerts = candidates.compactMap { evaluateLimit(account: account, limit: $0) }
@@ -102,8 +102,10 @@ public struct AlertEngine {
 
         // Auth states never notify: in practice they were false alarms (token rotation, a poll
         // racing the CLI) while the CLI kept working. The popover still shows the status line.
+        // Stale numbers were already judged when they were live, or date from before this
+        // launch (seeded from disk, often without reset times) and could re-alert as a new window.
         case .needsReauth, .needsCredentialsRepaste,
-             .idle, .notLoggedIn, .keychainDenied, .rateLimited, .failed:
+             .idle, .notLoggedIn, .keychainDenied, .rateLimited, .failed, .stale:
             return []
         }
     }
