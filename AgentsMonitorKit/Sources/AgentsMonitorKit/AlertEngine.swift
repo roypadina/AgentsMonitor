@@ -114,7 +114,10 @@ public struct AlertEngine {
 
     private mutating func evaluateLimit(account: Account, limit: LimitInfo) -> Alert? {
         let key = "\(account.id)|\(limit.id)"
-        let newLevel = max(Self.severityLevel(limit.severity), Self.thresholdLevel(percent: limit.percent, thresholds: thresholds))
+        // Codex rows are graded locally for display only (Codex.swift); their alerts follow the
+        // user's thresholds alone. Anthropic's server grade still raises a Claude alert.
+        let graded = account.provider == .codex ? AlertLevel.none : Self.severityLevel(limit.severity)
+        let newLevel = max(graded, Self.thresholdLevel(percent: limit.percent, thresholds: thresholds))
         let stored = memory[key]
         let sameWindow = Self.isSameWindow(stored?.window, limit.resetsAt)
         let shouldFire = newLevel > (stored?.level ?? .none) || (!sameWindow && stored != nil && newLevel > .none)

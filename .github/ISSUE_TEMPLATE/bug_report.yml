@@ -30,6 +30,6 @@ body:
     id: version
     attributes:
       label: Agents Monitor version and install method
-      placeholder: "1.7.0, Homebrew"
+      placeholder: "1.7.1, Homebrew"
     validations:
       required: true

@@ -84,7 +84,7 @@ public struct CodexUsageClient: Sendable {
 
     private let session: URLSession
 
-    public init(session: URLSession = .shared) {
+    public init(session: URLSession = UsageClient.noCacheSession) {
         self.session = session
     }
 
@@ -184,7 +184,7 @@ public extension UsageSnapshot {
     /// Anthropic's usage endpoint grades each window for us; OpenAI's does not, so grade it here.
     /// The cutoffs match what Anthropic returns (observed: 81% warning, 95% critical) so the two
     /// providers' rows mean the same thing side by side. Alerting uses the user's own thresholds
-    /// and is unaffected by this.
+    /// and ignores this grade (AlertEngine.evaluateLimit).
     private static func codexSeverity(percent: Int) -> Severity {
         switch percent {
         case 95...: return .critical
