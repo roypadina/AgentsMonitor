@@ -11,7 +11,16 @@ public struct UsageClient: Sendable {
 
     private let session: URLSession
 
-    public init(session: URLSession = .shared) {
+    /// Usage is per account and must be live: URLCache keys on the URL only, which every account
+    /// shares, so polls skip it entirely.
+    public static let noCacheSession: URLSession = {
+        let config = URLSessionConfiguration.ephemeral
+        config.urlCache = nil
+        config.requestCachePolicy = .reloadIgnoringLocalCacheData
+        return URLSession(configuration: config)
+    }()
+
+    public init(session: URLSession = UsageClient.noCacheSession) {
         self.session = session
     }
 

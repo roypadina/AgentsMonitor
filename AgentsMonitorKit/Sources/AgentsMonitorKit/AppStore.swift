@@ -80,6 +80,9 @@ public final class AppStore {
 
     /// Loads persisted defaults; on first run (no saved accounts) discovers local ones.
     public func bootstrap() {
+        // Before 1.7.1 usage went through URLSession.shared, whose disk cache kept the responses
+        // with their requests (bearer header included). Polls skip it now; drop what is left.
+        URLCache.shared.removeAllCachedResponses()
         Self.migrateLegacyDefaults()
         if let data = UserDefaults.standard.data(forKey: Self.settingsKey),
            let decoded = try? JSONDecoder().decode(Settings.self, from: data) {

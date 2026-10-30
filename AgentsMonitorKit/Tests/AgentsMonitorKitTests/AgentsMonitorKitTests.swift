@@ -161,6 +161,23 @@ final class AlertEngineTests: XCTestCase {
         XCTAssertEqual(engine.evaluate(account: acct, state: snapshot(percent: 85, severity: .normal, resetsAt: windowB)).count, 1, "window roll at same level")
     }
 
+    /// Regression: Codex's local 75% "warning" grade used to override a higher user threshold.
+    func testCodexAlertsFollowUserThresholdsOnly() {
+        var engine = AlertEngine(thresholds: AlertThresholds(warning: 90, critical: 98))
+        let codex = Account(name: "codex", kind: .local(configDirPath: "/tmp/.codex"), provider: .codex)
+        let window = Date(timeIntervalSince1970: 1_000_000)
+        XCTAssertEqual(engine.evaluate(account: codex, state: snapshot(percent: 80, severity: .warning, resetsAt: window)).count, 0, "below the user's 90%")
+        XCTAssertEqual(engine.evaluate(account: codex, state: snapshot(percent: 91, severity: .warning, resetsAt: window)).count, 1, "at the user's threshold")
+
+        var claudeEngine = AlertEngine(thresholds: AlertThresholds(warning: 90, critical: 98))
+        XCTAssertEqual(claudeEngine.evaluate(account: account(), state: snapshot(percent: 80, severity: .warning, resetsAt: window)).count, 1, "Claude: server grade still alerts")
+    }
+
+    func testUsageSessionHasNoCache() {
+        XCTAssertNil(UsageClient.noCacheSession.configuration.urlCache)
+        XCTAssertEqual(UsageClient.noCacheSession.configuration.requestCachePolicy, .reloadIgnoringLocalCacheData)
+    }
+
     /// Regression: the server recomputes `resets_at` per request (±1s jitter). Exact Date
     /// equality treated every poll as a window roll — 351 phone pushes in 12h.
     func testWindowJitterDoesNotReAlert() {
