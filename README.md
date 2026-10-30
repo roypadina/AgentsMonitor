@@ -257,7 +257,7 @@ every request (±1–2s observed) — exact comparison caused an alert on every 
   logged). Because it owns that login, it refreshes those tokens itself by calling Anthropic's
   token endpoint (`platform.claude.com`) when they expire. Local accounts are never refreshed.
 - **What it keeps on disk.** Your account list and settings in the app's preferences, a usage
-  history in `~/Library/Application Support/AgentsMonitor/history.jsonl` (percentages and spend
+  history in `~/Library/Application Support/AgentsMonitor/history.jsonl` (percentages, reset times and spend
   per account, 90 days), and a short-lived response cache in `~/Library/Caches/`.
 - **Not affiliated.** Agents Monitor is an independent project, not affiliated with, endorsed by
   or sponsored by Anthropic or OpenAI. "Claude" and "Codex" are their products' names. The usage

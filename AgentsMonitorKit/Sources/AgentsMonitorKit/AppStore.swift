@@ -109,7 +109,36 @@ public final class AppStore {
 
         usageHistory.prune(before: Date().addingTimeInterval(-Double(UsageHistory.keepDays) * 86400))
         history = Dictionary(grouping: usageHistory.load(since: Self.historyStart), by: \.id)
+        // So a first poll that fails after a relaunch still shows numbers (as .stale).
+        for account in accounts where lastSnapshot[account.id] == nil {
+            var cache: SharedUsageCache.Entry?
+            if account.provider == .claude, case .local(let path) = account.kind {
+                cache = SharedUsageCache.read(SharedUsageCache.file(configDir: path))
+            }
+            lastSnapshot[account.id] = Self.lastKnownSnapshot(cache: cache, latest: history[account.id]?.last)
+        }
     }
+
+    /// The newer of the shared cache's last body (full detail) and the last history sample
+    /// (percentages only), without the windows that have reset since; nil when nothing is left.
+    nonisolated static func lastKnownSnapshot(cache: SharedUsageCache.Entry?, latest: UsageSample?,
+                                              now: Date = Date()) -> UsageSnapshot? {
+        var found: UsageSnapshot?
+        if let body = cache?.body, let fetched = cache?.fetched_at, fetched >= (latest?.t ?? 0) {
+            found = try? UsageSnapshot.decode(Data(body.utf8), fetchedAt: Date(timeIntervalSince1970: fetched))
+        }
+        guard let old = found ?? latest.map(UsageSnapshot.init(sample:)),
+              now.timeIntervalSince(old.fetchedAt) < maxSeedAge else { return nil }
+        // A window that reset since then is back near 0%, so its old number would mislead.
+        let limits = old.limits.filter { limit in
+            if let resetsAt = limit.resetsAt { return resetsAt > now }
+            return limit.windowLength == 0 || now.timeIntervalSince(old.fetchedAt) < limit.windowLength
+        }
+        if limits.isEmpty && old.spend == nil { return nil }
+        return UsageSnapshot(limits: limits, spend: old.spend, fetchedAt: old.fetchedAt)
+    }
+
+    static let maxSeedAge: TimeInterval = 7 * 86400
 
     private static var historyStart: Date { Date().addingTimeInterval(-historyDays * 86400) }
 
@@ -283,9 +312,9 @@ public final class AppStore {
         switch state {
         case .rateLimited(let until):
             let time = until.formatted(date: .omitted, time: .shortened)
-            return .stale(last, error: "usage API throttled — retrying \(time)")
+            return .stale(last, error: "Usage API throttled — retrying \(time)")
         case .failed(let message):
-            return .stale(last, error: "last refresh failed: \(message)")
+            return .stale(last, error: message)
         default:
             return state
         }
@@ -324,12 +353,7 @@ public final class AppStore {
 
     public var worst: (percent: Int, severity: Severity)? {
         let live = states.values.compactMap { state -> (Int, Severity)? in
-            switch state {
-            case .ok(let snapshot), .stale(let snapshot, _):
-                return (snapshot.worstPercent, snapshot.worstSeverity)
-            default:
-                return nil
-            }
+            Self.menuBarSnapshot(state).map { ($0.worstPercent, $0.worstSeverity) }
         }
         guard let maxPercent = live.map(\.0).max() else { return nil }
         let severity = live.filter { $0.0 == maxPercent }.map(\.1).max() ?? .normal
@@ -360,11 +384,20 @@ public final class AppStore {
     }
 
     private func snapshot(for accountId: UUID) -> UsageSnapshot? {
-        switch states[accountId] {
-        case .ok(let snapshot), .stale(let snapshot, _): return snapshot
+        states[accountId].flatMap { Self.menuBarSnapshot($0) }
+    }
+
+    /// The menu bar has no room to say how old a number is, so stale numbers past `menuBarMaxAge`
+    /// (a long outage, or a seed from before this launch) drop out of it; the popover keeps them.
+    nonisolated static func menuBarSnapshot(_ state: AccountState, now: Date = Date()) -> UsageSnapshot? {
+        switch state {
+        case .ok(let snapshot): return snapshot
+        case .stale(let snapshot, _) where now.timeIntervalSince(snapshot.fetchedAt) < menuBarMaxAge: return snapshot
         default: return nil
         }
     }
+
+    static let menuBarMaxAge: TimeInterval = 3600
 
     /// Short per-account labels for the menu bar: a provider letter plus any digits in the name
     /// ("claude" -> "c", "claude2" -> "c2", a Codex account -> "x"). The letter comes from the
@@ -491,14 +524,18 @@ public final class AppStore {
         } catch CredentialError.refreshFailed(_) {
             return .needsCredentialsRepaste
         } catch CredentialError.badPayload {
-            return .failed("bad credentials payload")
+            return .failed("Can't read the saved login")
         } catch UsageError.unauthorized {
             if case .local = account.kind { return .needsReauth }
             return .needsCredentialsRepaste
         } catch UsageError.rateLimited {
             return .rateLimited(until: Date())   // caller replaces with the real backoff date
+        } catch let error as UsageError {
+            fetchLog.error("\(account.name, privacy: .public) poll failed: \(String(describing: error), privacy: .public)")
+            return .failed(error.message(company: account.provider.company))
         } catch {
-            return .failed(String(describing: error))
+            fetchLog.error("\(account.name, privacy: .public) poll failed: \(String(describing: error), privacy: .public)")
+            return .failed("Couldn't check usage")
         }
     }
 

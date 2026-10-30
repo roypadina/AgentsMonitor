@@ -1066,3 +1066,137 @@ final class NtfyTests: XCTestCase {
         XCTAssertEqual(decoded.ntfyDefaultTopic, "t")
     }
 }
+
+// MARK: - Poll errors and last known numbers
+
+final class PollErrorTests: XCTestCase {
+    /// The row used to read `transport("The request timed out.")`.
+    func testUsageErrorsReadAsPlainWords() {
+        XCTAssertEqual(UsageError.unreachable(URLError(.timedOut)).message(company: "Anthropic"),
+                       "Can't reach Anthropic: timed out")
+        XCTAssertEqual(UsageError.unreachable(URLError(.notConnectedToInternet)).message(company: "OpenAI"),
+                       "Can't reach OpenAI: no internet connection")
+        XCTAssertEqual(UsageError.unauthorized.message(company: "Anthropic"), "Anthropic rejected the login")
+        XCTAssertEqual(UsageError.rateLimited.message(company: "Anthropic"), "Anthropic is limiting usage checks")
+        XCTAssertEqual(UsageError.http(503).message(company: "OpenAI"), "OpenAI's servers are having problems")
+        XCTAssertEqual(UsageError.http(404).message(company: "OpenAI"), "OpenAI didn't accept the usage check")
+        XCTAssertEqual(UsageError.decode("keyNotFound(...)").message(company: "Anthropic"),
+                       "Anthropic sent usage data this version can't read")
+        XCTAssertEqual(Provider.claude.company, "Anthropic")
+        XCTAssertEqual(Provider.codex.company, "OpenAI")
+    }
+
+    func testFailedPollKeepsSnapshotWithTheMessageAsIs() {
+        let snapshot = UsageSnapshot(limits: [], spend: nil)
+        XCTAssertEqual(AppStore.preservingSnapshot(.failed("Can't reach Anthropic: timed out"), last: snapshot),
+                       .stale(snapshot, error: "Can't reach Anthropic: timed out"))
+    }
+
+    private let sample = UsageSample(
+        account: UUID(),
+        snapshot: UsageSnapshot(limits: [
+            LimitInfo(kind: "weekly_scoped", group: "weekly", percent: 40, severity: .normal,
+                      resetsAt: nil, modelDisplayName: "Fable", isActive: true),
+            LimitInfo(kind: "weekly_all", group: "weekly", percent: 82, severity: .warning,
+                      resetsAt: nil, modelDisplayName: nil, isActive: true),
+            LimitInfo(kind: "session", group: "session", percent: 12, severity: .normal,
+                      resetsAt: nil, modelDisplayName: nil, isActive: true),
+        ], spend: nil),
+        at: Date(timeIntervalSince1970: 1_800_000_000))
+
+    func testHistorySampleBecomesRowsInDisplayOrder() throws {
+        let snapshot = try XCTUnwrap(AppStore.lastKnownSnapshot(cache: nil, latest: sample, now: soon))
+        XCTAssertEqual(snapshot.limits.map(\.label), ["Session", "Week", "Week · Fable"])
+        XCTAssertEqual(snapshot.limits.map(\.percent), [12, 82, 40])
+        XCTAssertEqual(snapshot.limits[1].severity, .warning)
+        XCTAssertEqual(snapshot.fetchedAt, sample.date)
+        XCTAssertNil(AppStore.lastKnownSnapshot(cache: nil, latest: nil), "no history, no cache: nothing to show")
+    }
+
+    private var soon: Date { sample.date.addingTimeInterval(60) }
+
+    /// A window that reset since the reading is back near 0%; its old number must not come back.
+    func testSeedDropsWindowsThatResetSince() throws {
+        let later = sample.date.addingTimeInterval(6 * 3600)   // past the 5h session, inside the week
+        let seeded = try XCTUnwrap(AppStore.lastKnownSnapshot(cache: nil, latest: sample, now: later))
+        XCTAssertEqual(seeded.limits.map(\.label), ["Week", "Week · Fable"])
+        XCTAssertNil(AppStore.lastKnownSnapshot(cache: nil, latest: sample, now: sample.date.addingTimeInterval(8 * 86400)),
+                     "older than a week: every window has reset")
+
+        let body = #"{"five_hour":{"utilization":90,"resets_at":"2027-01-15T10:00:00Z"},"seven_day":{"utilization":40,"resets_at":"2027-01-20T10:00:00Z"}}"#
+        let fetched = ISO8601DateFormatter().date(from: "2027-01-15T08:00:00Z")!
+        let cache = SharedUsageCache.Entry(fetched_at: fetched.timeIntervalSince1970, body: body, throttled_until: 0)
+        let fromCache = try XCTUnwrap(AppStore.lastKnownSnapshot(cache: cache, latest: nil,
+                                                                 now: fetched.addingTimeInterval(3 * 3600)))
+        XCTAssertEqual(fromCache.limits.map(\.label), ["Week"], "the session reset at 10:00, now is 11:00")
+    }
+
+    /// Samples keep reset times, so a week that reset an hour after the sample is dropped too.
+    func testSampleResetTimesDropAWeekThatResetSince() throws {
+        let at = Date(timeIntervalSince1970: 1_800_000_000)
+        let week = LimitInfo(kind: "weekly_all", group: nil, percent: 90, severity: .warning,
+                             resetsAt: at.addingTimeInterval(3600), modelDisplayName: nil, isActive: true)
+        let session = LimitInfo(kind: "session", group: nil, percent: 10, severity: .normal,
+                                resetsAt: at.addingTimeInterval(4 * 3600), modelDisplayName: nil, isActive: true)
+        let line = try JSONEncoder().encode(UsageSample(account: UUID(),
+                                                        snapshot: UsageSnapshot(limits: [week, session], spend: nil), at: at))
+        let stored = try JSONDecoder().decode(UsageSample.self, from: line)
+        let seeded = try XCTUnwrap(AppStore.lastKnownSnapshot(cache: nil, latest: stored, now: at.addingTimeInterval(2 * 3600)))
+        XCTAssertEqual(seeded.limits.map(\.label), ["Session"])
+        XCTAssertEqual(seeded.limits.first?.resetsAt, session.resetsAt)
+
+        let old = #"{"t":1800000000,"id":"\#(UUID().uuidString)","p":{"Week":90}}"#   // pre-1.7.2 line
+        XCTAssertNil(try JSONDecoder().decode(UsageSample.self, from: Data(old.utf8)).r)
+    }
+
+    /// The menu bar cannot show an age, so old stale numbers leave it; fresh stale ones stay.
+    func testMenuBarIgnoresOldStaleNumbers() {
+        let snapshot = UsageSnapshot(limits: [], spend: nil, fetchedAt: Date(timeIntervalSince1970: 1_800_000_000))
+        let state = AccountState.stale(snapshot, error: "x")
+        XCTAssertNotNil(AppStore.menuBarSnapshot(state, now: snapshot.fetchedAt.addingTimeInterval(600)))
+        XCTAssertNil(AppStore.menuBarSnapshot(state, now: snapshot.fetchedAt.addingTimeInterval(2 * 3600)))
+        XCTAssertNotNil(AppStore.menuBarSnapshot(.ok(snapshot), now: snapshot.fetchedAt.addingTimeInterval(86400)))
+    }
+
+    func testUndecodableCacheFallsBackToHistory() throws {
+        let broken = SharedUsageCache.Entry(fetched_at: sample.t + 60, body: "not json", throttled_until: 0)
+        let seeded = try XCTUnwrap(AppStore.lastKnownSnapshot(cache: broken, latest: sample, now: soon))
+        XCTAssertEqual(seeded.limits.count, 3)
+    }
+
+    /// Codex's code-review window is stored by its label and must come back as the same kind.
+    func testCodexCodeReviewLabelRoundTrips() {
+        let limit = LimitInfo(kind: "code_review", group: nil, percent: 5, severity: .normal,
+                              resetsAt: nil, modelDisplayName: nil, isActive: true)
+        let back = UsageSnapshot(sample: UsageSample(account: UUID(), snapshot: UsageSnapshot(limits: [limit], spend: nil)))
+        XCTAssertEqual(back.limits.map(\.kind), ["code_review"])
+        XCTAssertEqual(back.limits.map(\.label), [limit.label])
+    }
+
+    func testUnmappedTransportErrorReadsMidSentence() {
+        let error = NSError(domain: "x", code: 1, userInfo: [NSLocalizedDescriptionKey: "The network did a thing."])
+        XCTAssertEqual(UsageError.unreachable(error).message(company: "OpenAI"), "Can't reach OpenAI: the network did a thing")
+    }
+
+    func testNewerCacheBodyWinsOverHistory() throws {
+        let body = String(decoding: try loadFixtureData("usage_with_spend"), as: UTF8.self)
+        let newer = SharedUsageCache.Entry(fetched_at: sample.t + 60, body: body, throttled_until: 0)
+        let fromCache = try XCTUnwrap(AppStore.lastKnownSnapshot(cache: newer, latest: sample, now: soon))
+        XCTAssertNotNil(fromCache.spend, "the cache body keeps the full detail")
+        XCTAssertEqual(fromCache.fetchedAt, Date(timeIntervalSince1970: sample.t + 60))
+
+        let older = SharedUsageCache.Entry(fetched_at: sample.t - 60, body: body, throttled_until: 0)
+        XCTAssertNil(try XCTUnwrap(AppStore.lastKnownSnapshot(cache: older, latest: sample, now: soon)).spend)
+        let throttledOnly = SharedUsageCache.Entry(fetched_at: nil, body: nil, throttled_until: sample.t)
+        XCTAssertNotNil(AppStore.lastKnownSnapshot(cache: throttledOnly, latest: sample, now: soon))
+    }
+
+    /// Seeded numbers carry no reset times, so judging them would re-alert as a new window.
+    func testStaleStateNeverAlerts() {
+        var engine = AlertEngine()
+        let account = Account(name: "Test", kind: .local(configDirPath: "/tmp/x"))
+        let snapshot = UsageSnapshot(sample: sample)
+        XCTAssertTrue(engine.evaluate(account: account, state: .stale(snapshot, error: "x")).isEmpty)
+        XCTAssertFalse(engine.evaluate(account: account, state: .ok(snapshot)).isEmpty)
+    }
+}

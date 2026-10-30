@@ -105,11 +105,11 @@ public struct CodexUsageClient: Sendable {
         do {
             (data, response) = try await session.data(for: request)
         } catch {
-            throw UsageError.transport(error.localizedDescription)
+            throw UsageError.unreachable(error)
         }
 
         guard let http = response as? HTTPURLResponse else {
-            throw UsageError.transport("no HTTP response")
+            throw UsageError.transport("no response")
         }
         switch http.statusCode {
         case 200..<300:
@@ -185,7 +185,7 @@ public extension UsageSnapshot {
     /// The cutoffs match what Anthropic returns (observed: 81% warning, 95% critical) so the two
     /// providers' rows mean the same thing side by side. Alerting uses the user's own thresholds
     /// and ignores this grade (AlertEngine.evaluateLimit).
-    private static func codexSeverity(percent: Int) -> Severity {
+    internal static func codexSeverity(percent: Int) -> Severity {
         switch percent {
         case 95...: return .critical
         case 75...: return .warning

@@ -58,11 +58,11 @@ public struct UsageClient: Sendable {
         do {
             (data, response) = try await session.data(for: request)
         } catch {
-            throw UsageError.transport(error.localizedDescription)
+            throw UsageError.unreachable(error)
         }
 
         guard let http = response as? HTTPURLResponse else {
-            throw UsageError.transport("no HTTP response")
+            throw UsageError.transport("no response")
         }
         switch http.statusCode {
         case 200..<300:
@@ -107,4 +107,36 @@ public enum UsageError: Error, Equatable {
     case http(Int)
     case transport(String)
     case decode(String)
+}
+
+extension UsageError {
+    /// The account row's error line, in plain words. `company` runs the endpoint ("Anthropic",
+    /// "OpenAI"); status codes and decode details stay in the log, not on screen.
+    public func message(company: String) -> String {
+        switch self {
+        case .unauthorized: return "\(company) rejected the login"
+        case .rateLimited: return "\(company) is limiting usage checks"
+        case .http(let code) where code >= 500: return "\(company)'s servers are having problems"
+        case .http: return "\(company) didn't accept the usage check"
+        case .transport(let reason): return "Can't reach \(company): \(reason)"
+        case .decode: return "\(company) sent usage data this version can't read"
+        }
+    }
+
+    /// A failed request as a short reason ("timed out"), not URLError's full sentence.
+    static func unreachable(_ error: Error) -> UsageError {
+        switch (error as? URLError)?.code {
+        case .timedOut?: return .transport("timed out")
+        case .notConnectedToInternet?, .dataNotAllowed?: return .transport("no internet connection")
+        case .networkConnectionLost?: return .transport("connection lost")
+        case .cannotFindHost?, .dnsLookupFailed?: return .transport("server not found")
+        case .cannotConnectToHost?: return .transport("connection refused")
+        case .secureConnectionFailed?, .serverCertificateUntrusted?, .serverCertificateHasBadDate?,
+             .serverCertificateNotYetValid?, .serverCertificateHasUnknownRoot?:
+            return .transport("secure connection failed")
+        default:
+            let reason = error.localizedDescription.trimmingCharacters(in: CharacterSet(charactersIn: ". "))
+            return .transport(reason.prefix(1).lowercased() + reason.dropFirst())
+        }
+    }
 }

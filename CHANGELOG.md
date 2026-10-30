@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.2] - 2026-10-30
+
+### Fixed
+- A failed refresh now says what went wrong in plain words, such as "Can't reach Anthropic: timed out", instead of an internal error code.
+- After a relaunch, an account whose first refresh fails keeps showing its last known numbers, with how old they are, instead of a blank card.
+- Numbers more than an hour old leave the menu bar while refreshes keep failing, because it has no room to say how old they are. The popover still shows them, with their age.
+
 ## [1.7.1] - 2026-10-30
 
 ### Fixed

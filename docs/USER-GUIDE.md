@@ -289,8 +289,10 @@ for the public server.
 | **Login token expired — run codex in this profile** | Codex account, two consecutive 401s. | Run `codex` with that `CODEX_HOME`, which rewrites `auth.json` with a fresh token. Only run `codex login` if that alone doesn't clear it. |
 | **Credentials expired** (remote account, with a **Paste credentials…** button) | The refresh grant failed — most often the source machine rotated the same lineage first (the rotation race, see [Remote accounts](#remote-accounts)). | Click **Paste credentials…**, re-copy the JSON from the source machine, save. |
 | **Rate limited until HH:MM** | The usage endpoint returned 429 for this account. Backoff walks 3 → 6 → 12 → 15 minutes and holds; any successful poll resets it. | Nothing to do — it recovers on its own. Persisting past ~15 minutes on every account suggests you're hitting a shared-bucket throttle; check you're not also running another heavy poller against the same token. |
-| **Last refresh failed: …** (below otherwise-normal rows) | The last poll failed but a previous good snapshot is still shown (stale-but-displayed). | Check the error text; if it's a transport error, confirm you have network connectivity. |
-| Some other error message | An unclassified failure (unexpected HTTP status, decode error, etc.). | Check the logs (below) for the exact error and open an issue with the log line if it looks like a bug. |
+| **Can't reach Anthropic: timed out** (or OpenAI; also *no internet connection*, *server not found*, *connection lost*) | The usage endpoint could not be reached. | Check your network or VPN. The next poll retries by itself. |
+| **Anthropic's servers are having problems** / **didn't accept the usage check** | The endpoint answered with an error. | Nothing to do; it usually clears on a later poll. |
+| Any error line under the bars, ending **· numbers from 12 hours ago** | The last poll failed, so the card keeps the last known numbers (also across a relaunch, minus windows that reset since) and says how old they are. Past an hour they leave the menu bar. | Read the error text; the numbers update on the next good poll. |
+| **Couldn't check usage** or **sent usage data this version can't read** | An unclassified failure, or a response format this version doesn't know. | Check the logs (below) for the exact error and open an issue with the log line if it looks like a bug. |
 
 ## Logs
 
