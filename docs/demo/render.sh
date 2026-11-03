@@ -16,7 +16,7 @@ swiftc -swift-version 5 -O -emit-library -static -module-name AgentsMonitorKit -
 V="$APP/AgentsMonitor"
 swiftc -swift-version 5 -parse-as-library -O -suppress-warnings -I "$BUILD" -L "$BUILD" -lAgentsMonitorKit -o "$BUILD/demo" \
   "$KIT/DemoKit.swift" "$HERE/scene.swift" \
-  "$V/AccountRows.swift" "$V/HistoryViews.swift" "$V/MenuBarLabel.swift" "$V/Notifier.swift" "$V/OpenRouterViews.swift" "$V/PopoverView.swift" "$V/ProviderBadge.swift" \
+  "$V/AccountRows.swift" "$V/HistoryViews.swift" "$V/MenuBarLabel.swift" "$V/Notifier.swift" "$V/OpenRouterSettings.swift" "$V/OpenRouterViews.swift" "$V/PopoverView.swift" "$V/ProviderBadge.swift" \
   "$V/SettingsView.swift" "$V/SettingsWindow.swift" "$V/ToastPanel.swift" "$V/WelcomeWindow.swift" \
   "$APP/Scripts/render-screenshots/Sources/render/ProgressStandIn.swift"
 rm -rf "$BUILD/frames"

@@ -55,6 +55,8 @@ public final class AppStore {
     public var settings = Settings()
     public var lastRefresh: Date?
     public var isRefreshing = false
+    /// A forced refresh (Connect, Add Key) that arrived during a poll: that poll runs once more.
+    var refreshPending = false
     /// Recent samples per account, oldest first — what the graphs draw. The file keeps more.
     public var history: [UUID: [UsageSample]] = [:]
     public static let historyDays: Double = 30
@@ -252,10 +254,22 @@ public final class AppStore {
     /// Concurrent per-account; keychain read + network fetch happen off-main inside `fetch`.
     /// `force` skips the 20 s floor — only after Connect / Add Key.
     public func refresh(force: Bool = false) async {
-        guard !isRefreshing else { return }
+        guard !isRefreshing else {
+            // The running poll read its keys before this change; without a re-run they appear a poll later.
+            if force { refreshPending = true }
+            return
+        }
         // Floor between polls: the Refresh button, a wake-up and the poll timer can otherwise
         // land on top of each other and spend three requests per account for one screenful.
         if !force, let last = lastRefresh, Date().timeIntervalSince(last) < Self.minRefreshInterval { return }
+        await poll()
+        while refreshPending {
+            refreshPending = false
+            await poll()
+        }
+    }
+
+    private func poll() async {
         isRefreshing = true
         defer { isRefreshing = false; lastRefresh = Date() }
 

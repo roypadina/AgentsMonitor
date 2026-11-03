@@ -145,7 +145,12 @@ struct OpenRouterKeyRow: View {
     /// OpenRouter's own masked form, shortened to its tail ("sk-or-v1-abc...123" → "sk-or-…123"): the tail
     /// is what tells keys apart. Skipped when the label already is the name.
     private func maskedLabel(_ usage: OpenRouterKeyUsage?) -> String? {
-        guard let label = usage?.label ?? config.lastLabel, !label.isEmpty, label != config.displayName else { return nil }
+        Self.maskedLabel(usage?.label ?? config.lastLabel, displayName: config.displayName)
+    }
+
+    /// Also used by Settings → OpenRouter.
+    static func maskedLabel(_ label: String?, displayName: String) -> String? {
+        guard let label, !label.isEmpty, label != displayName else { return nil }
         guard let tail = label.components(separatedBy: "...").last, tail != label else { return label }
         return (label.hasPrefix("sk-or-") ? "sk-or-…" : "…") + tail
     }

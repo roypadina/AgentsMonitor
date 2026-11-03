@@ -171,4 +171,21 @@ final class OpenRouterStoreTests: XCTestCase {
         XCTAssertEqual(AppStore.preservingOpenRouter(.failed("down"), last: last), .stale(last, error: "down"))
         XCTAssertEqual(AppStore.preservingOpenRouter(.failed("down"), last: nil), .failed("down"))
     }
+
+    /// Connect / Add Key during a poll: the forced refresh is queued, and the running poll runs once more.
+    func testForcedRefreshDuringPollRunsAgain() async {
+        let store = AppStore()   // nothing configured: a poll makes no network call
+        store.isRefreshing = true
+        await store.refresh()
+        XCTAssertFalse(store.refreshPending, "a timer refresh during a poll is dropped")
+        await store.refresh(force: true)
+        XCTAssertTrue(store.refreshPending)
+        XCTAssertNil(store.lastRefresh, "nothing polled while the other poll runs")
+
+        store.isRefreshing = false   // a poll that finds the flag runs again and clears it
+        await store.refresh()
+        XCTAssertFalse(store.refreshPending)
+        XCTAssertFalse(store.isRefreshing)
+        XCTAssertNotNil(store.lastRefresh)
+    }
 }

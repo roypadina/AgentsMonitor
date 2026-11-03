@@ -164,6 +164,31 @@ MainActor.assumeIsolated {
     render(PopoverView(), size: CGSize(width: 460, height: 0), name: "popover-openrouter-error")
     render(MorePage(filter: .constant(""), onBack: {}, onRepaste: { _ in }), size: CGSize(width: 460, height: 0), name: "more-page-empty")
 
+    // Settings → OpenRouter (pane size as in SettingsWindow) with the four example rules, then the two sheets.
+    store.openRouterKeys = usages.prefix(11).enumerated().map { index, usage in
+        OpenRouterKeyConfig(id: usage.id, source: usage.error == nil ? .managed : .pasted,
+                            placement: index == 0 ? .popover : index == 1 ? .menuBar : .more,
+                            lastName: usage.name, lastLabel: usage.label)
+    }
+    store.openRouterState = .ok(OpenRouterSnapshot(keys: usages, balance: OpenRouterBalance(totalCredits: 100, totalUsage: 57.83)))
+    store.spendRules = [
+        SpendRule(scope: .allKeys, window: .utcWeek, threshold: 20),
+        SpendRule(scope: .eachKey, window: .lastHour, threshold: 5),
+        SpendRule(kind: .capRemaining, scope: .key("hash-prod-agent"), unit: .percent, threshold: 10, level: .critical),
+        SpendRule(kind: .balance, threshold: 10),
+    ]
+    render(OpenRouterTab().frame(width: 520, height: 820), size: CGSize(width: 520, height: 820), name: "settings-openrouter")
+    render(OpenRouterTab().frame(width: 520, height: 820), size: CGSize(width: 520, height: 820), name: "settings-openrouter-light", dark: false)
+    render(AddOpenRouterKeySheet(), size: CGSize(width: 400, height: 0), name: "add-key-sheet")
+    render(SpendRuleSheet(rule: SpendRule(scope: .allKeys, window: .utcWeek, threshold: 20), isNew: true),
+           size: CGSize(width: 440, height: 0), name: "spend-rule-sheet")
+    render(SpendRuleSheet(rule: store.spendRules[2], isNew: false), size: CGSize(width: 440, height: 0), name: "spend-rule-sheet-cap", dark: false)
+    store.openRouterKeys = []
+    store.spendRules = []
+    store.settings.openRouter.managementKeyConfigured = false
+    store.openRouterState = .idle
+    render(OpenRouterTab().frame(width: 520, height: 820), size: CGSize(width: 520, height: 820), name: "settings-openrouter-empty")
+
     let alerts = [
         Alert(accountId: personal.id, accountName: "Personal", key: "weekly_all", title: "Personal: Week at 93%",
               body: "Resets in 31h. Consider switching account.", level: .critical),
