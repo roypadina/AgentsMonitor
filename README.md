@@ -23,7 +23,7 @@ or spend limit runs out from under you.
 
 <br>
 
-<img src="docs/demo.gif" alt="Agents Monitor in action: usage dots and numbers in the menu bar, a click opens limit bars and reset times, a card flips to its usage graph, and a toast warns when Codex crosses its limit." width="720">
+<img src="docs/demo.gif" alt="Agents Monitor in action: usage dots and numbers in the menu bar, a click opens one compact line per account and per pinned OpenRouter key, a row expands into its card with limit bars and reset times, the OpenRouter row opens the More page with every key's spend, and a toast warns when Codex crosses its limit." width="720">
 
 ```bash
 brew install --cask roypadina/tap/agents-monitor

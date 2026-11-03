@@ -21,6 +21,6 @@ swiftc -swift-version 5 -parse-as-library -O -suppress-warnings -I "$BUILD" -L "
   "$APP/Scripts/render-screenshots/Sources/render/ProgressStandIn.swift"
 rm -rf "$BUILD/frames"
 "$BUILD/demo" "$BUILD/frames" 30 -AppleLocale en_US -AppleLanguages "(en)"      # en_US: "9:41 AM"-style times
-POSTER=${POSTER:-130}  # popover open with both cards (shows the app, never the empty desktop)
+POSTER=${POSTER:-198}  # popover open, Codex row expanded into its card (shows the app, never the empty desktop)
 "$KIT/encode.sh" "$BUILD/frames" "$GIF" "${MP4:-}" "${WEBP:-}" "${POSTER:-}"
 rm -rf "$BUILD/frames"                                                            # only after a successful encode (set -e)
