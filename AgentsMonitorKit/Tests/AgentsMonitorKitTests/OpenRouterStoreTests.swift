@@ -154,6 +154,18 @@ final class OpenRouterStoreTests: XCTestCase {
         XCTAssertTrue(AppStore.shouldSample(last: last, usage: 5, now: at(OpenRouterHistory.flatGap)))
     }
 
+    func testSummary() {
+        let snapshot = OpenRouterSnapshot(keys: [capped, plain], balance: OpenRouterBalance(totalCredits: 100, totalUsage: 57.83))
+        XCTAssertEqual(AppStore.openRouterSummary(state: .ok(snapshot), keyCount: 14), "balance $42.17 · $3.61 today · 14 keys")
+        XCTAssertEqual(AppStore.openRouterSummary(state: .ok(snapshot), keyCount: 1, showBalance: false), "$3.61 today · 1 key")
+        XCTAssertEqual(AppStore.openRouterSummary(state: .idle, keyCount: 3), "checking…")
+        XCTAssertEqual(AppStore.openRouterSummary(state: .failed("Management key expired — paste a new one in Settings"), keyCount: 3),
+                       "management key expired")
+        let pastedOnly = OpenRouterSnapshot(keys: [plain], managementError: "That's not a management key — paste a management key in Settings")
+        XCTAssertEqual(AppStore.openRouterSummary(state: .stale(pastedOnly, error: "x"), keyCount: 1), "that's not a management key")
+        XCTAssertEqual(AppStore.openRouterSummary(state: .ok(OpenRouterSnapshot(keys: [])), keyCount: 0), "no keys yet")
+    }
+
     func testFailedPollKeepsLastNumbers() {
         let last = OpenRouterSnapshot(keys: [plain])
         XCTAssertEqual(AppStore.preservingOpenRouter(.failed("down"), last: last), .stale(last, error: "down"))

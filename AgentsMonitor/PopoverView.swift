@@ -10,10 +10,17 @@ private let credentialStore = CredentialStore()
 struct PopoverView: View {
     private let store = AppStore.shared
     @State private var repasteAccount: Account?
+    // Kept across close and reopen of the popover; Back (⌘[) returns to Main.
+    @State private var page: Page = .main
+    @State private var filter = ""
+
+    private enum Page { case main, more }
 
     var body: some View {
         VStack(spacing: 0) {
-            if store.accounts.isEmpty {
+            if page == .more {
+                MorePage(filter: $filter, onBack: { page = .main }, onRepaste: { repasteAccount = $0 })
+            } else if store.accounts.isEmpty && !store.showsMoreEntry {
                 emptyState
             } else {
                 // Taller than the screen allows, the rows scroll so the footer (Settings, Quit) stays on it.
@@ -34,6 +41,11 @@ struct PopoverView: View {
     private var rows: some View {
         VStack(spacing: 6) {
             AccountList(accounts: store.popoverAccounts) { repasteAccount = $0 }
+            if store.showsMoreEntry {
+                OpenRouterHeaderRow { page = .more }
+                    .padding(.top, store.popoverAccounts.isEmpty ? 0 : 6)
+                ForEach(store.popoverKeys) { OpenRouterKeyRow(config: $0) }
+            }
         }
         .padding(12)
     }

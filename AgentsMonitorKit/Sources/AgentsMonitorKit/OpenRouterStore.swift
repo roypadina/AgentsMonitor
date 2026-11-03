@@ -360,6 +360,31 @@ extension AppStore {
                                nowUsage: usage.usage)?.usd
     }
 
+    // MARK: - Popover summary (design §4.1, §8)
+
+    /// "balance $42.17 · $3.20 today · 14 keys", "checking…", "no keys yet", or an error's first clause
+    /// ("management key expired"), lowercased to follow "OpenRouter · ".
+    public static func openRouterSummary(state: OpenRouterState, keyCount: Int, showBalance: Bool = true) -> String {
+        func short(_ error: String) -> String {
+            let clause = error.components(separatedBy: " — ").first ?? error
+            return clause.prefix(1).lowercased() + clause.dropFirst()
+        }
+        let snapshot: OpenRouterSnapshot
+        switch state {
+        case .idle: return "checking…"
+        case .failed(let message): return short(message)
+        case .ok(let live): snapshot = live
+        case .stale(let old, _): snapshot = old
+        }
+        if let error = snapshot.managementError { return short(error) }
+        if keyCount == 0 && snapshot.balance == nil { return "no keys yet" }
+        var parts: [String] = []
+        if showBalance, let balance = snapshot.balance { parts.append("balance \(OpenRouter.formatUSD(balance.usd))") }
+        parts.append("\(OpenRouter.formatUSD(snapshot.todayTotal)) today")
+        parts.append(keyCount == 1 ? "1 key" : "\(keyCount) keys")
+        return parts.joined(separator: " · ")
+    }
+
     // MARK: - Menu bar (design §4.5)
 
     /// "o" + the digits in the display name; any collision numbers them all `o1…oN`.

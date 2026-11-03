@@ -30,7 +30,8 @@ final class SettingsWindow {
     static let shared = SettingsWindow()
     private var window: NSWindow?
 
-    func show() {
+    /// `tab`: the pane to open on, by label (the More page's Settings… opens "OpenRouter").
+    func show(tab: String? = nil) {
         if window == nil {
             let tabs = SettingsTabs()
             tabs.tabStyle = .toolbar
@@ -59,6 +60,10 @@ final class SettingsWindow {
                 for await _ in NotificationCenter.default.notifications(named: NSWindow.willCloseNotification, object: w) { break }
                 self?.window = nil
             }
+        }
+        if let tab, let tabs = window?.contentViewController as? NSTabViewController,
+           let index = tabs.tabViewItems.firstIndex(where: { $0.label == tab }) {
+            tabs.selectedTabViewItemIndex = index   // didSelect updates the title and the remembered pane
         }
         if let window { AccessoryWindows.shared.show(window) }
     }
