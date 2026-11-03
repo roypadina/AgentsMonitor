@@ -62,8 +62,15 @@ Claude Code and the status line in Codex:
   how much shows (icon and name, icon only, name only, hidden) and whether it's colored. The
   color stays on the badge and the stripe: bars and dots mean *severity*, so tinting those by
   provider would read as a health signal
-- Menu-bar label, fully configurable (Settings → General + the per-account **Menu bar**
-  checkbox): pick **which accounts** appear, **which value** each one shows (worst limit,
+- A **compact popover**: one line per account with up to three meter chips (`5h`, `7d`, `F`), a
+  second line only when something needs attention, and a click to expand the full card
+- **OpenRouter keys**: paste one management key and every key in your workspace appears with the
+  credit balance, or paste single keys. Today / week / month spend (OpenRouter's UTC calendar),
+  caps, a **More page** for long key lists, and **spend alerts** ("all keys over $20 this week",
+  "each key over $5 in the last hour", "cap below 10% left", "balance below $10")
+- **Placement** for every account and key: menu bar and popover, popover only, More page, or hidden
+- Menu-bar label, fully configurable (Settings → General + the per-account **Show in**
+  pop-up): pick **which accounts** appear, **which value** each one shows (worst limit,
   session, weekly, or per-model weekly), plus optional extras per account: the **per-model
   window** shown separately (`F 100%`) and the **extra usage spent** (`$739`)
 - A **usage dot** per account that fades green → yellow → red with session/weekly usage, so the
@@ -249,18 +256,24 @@ every request (±1–2s observed) — exact comparison caused an alert on every 
   usage endpoint how much of your limits you have used. It never refreshes, rewrites or deletes
   those logins.
 - **What leaves your Mac.** Only those usage requests: `api.anthropic.com` (Claude) and
-  `chatgpt.com` (Codex), each carrying that account's own access token. If you turn on **ntfy**,
+  `chatgpt.com` (Codex), each carrying that account's own access token, and `openrouter.ai` for the OpenRouter keys you add. If you turn on **ntfy**,
   alert text (account name, limit, percentage) goes to the ntfy server and topic you configure.
   Nothing else: no analytics, no telemetry, no update checks, no third parties.
 - **Remote accounts.** If you paste credentials for an account that lives on another machine, the
   app stores them in its own device-only Keychain item (not iCloud, not UserDefaults, never
   logged). Because it owns that login, it refreshes those tokens itself by calling Anthropic's
   token endpoint (`platform.claude.com`) when they expire. Local accounts are never refreshed.
+- **OpenRouter.** Keys you add (a management key, pasted API keys) are stored in the app's own
+  Keychain items and sent only to `openrouter.ai`, in the `Authorization` header, to read usage,
+  caps and your credit balance. The app keeps the key list without secrets (names, masked labels,
+  placement) in its preferences, and a 3-day spend history in
+  `~/Library/Application Support/AgentsMonitor/openrouter-history.jsonl` for the last-hour and
+  last-24-hours alerts. Keys are never shown in full or logged.
 - **What it keeps on disk.** Your account list and settings in the app's preferences, a usage
   history in `~/Library/Application Support/AgentsMonitor/history.jsonl` (percentages, reset times and spend
   per account, 90 days), and a short-lived response cache in `~/Library/Caches/`.
 - **Not affiliated.** Agents Monitor is an independent project, not affiliated with, endorsed by
-  or sponsored by Anthropic or OpenAI. "Claude" and "Codex" are their products' names. The usage
+  or sponsored by Anthropic, OpenAI or OpenRouter. "Claude" and "Codex" are their products' names. The usage
   endpoints it calls are undocumented and may change or stop working.
 
 ## Caveats
