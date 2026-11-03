@@ -5,7 +5,7 @@ All notable changes to Agents Monitor (formerly Claude Monitor) are documented h
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.8.0] - 2026-11-03
+## [1.8.0] - 2026-11-04
 
 ### Added
 - A compact popover: each account is one line with up to three meter chips, and a second line only when something needs attention. Click a row (or its chevron) to expand it into the full card with bars, pacing tick, countdowns and graphs.
