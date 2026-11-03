@@ -15,12 +15,12 @@ final class PlacementTests: XCTestCase {
         XCTAssertEqual(try decode("{\(base),\"placement\":\"hidden\",\"showInMenuBar\":true}").placement, .hidden)
     }
 
-    func testEncodeWritesPlacementNotLegacyKey() throws {
+    func testEncodeWritesPlacementAndLegacyKey() throws {
         var account = try decode("{\(base)}")
         account.placement = .more
         let json = String(decoding: try JSONEncoder().encode(account), as: UTF8.self)
         XCTAssertTrue(json.contains("\"placement\":\"more\""))
-        XCTAssertFalse(json.contains("showInMenuBar"))
+        XCTAssertTrue(json.contains("\"showInMenuBar\":false"), "older versions read this key")
         XCTAssertEqual(try decode(json).placement, .more)
     }
 

@@ -148,7 +148,7 @@ public struct Account: Codable, Identifiable, Hashable, Sendable {
         self.placement = placement ?? (showInMenuBar ? .menuBar : .popover)
     }
 
-    // `showInMenuBar` stays a key so the legacy blob decodes; it is never written back.
+    // `showInMenuBar` is still written so an older app version reading these settings keeps menu-bar items right.
     private enum CodingKeys: String, CodingKey {
         case id, name, kind, desktopAlerts, ntfyEnabled, ntfyTopicOverride, showInMenuBar, placement, provider
     }
@@ -162,6 +162,7 @@ public struct Account: Codable, Identifiable, Hashable, Sendable {
         try c.encode(ntfyEnabled, forKey: .ntfyEnabled)
         try c.encodeIfPresent(ntfyTopicOverride, forKey: .ntfyTopicOverride)
         try c.encode(placement, forKey: .placement)
+        try c.encode(showInMenuBar, forKey: .showInMenuBar)
         try c.encode(provider, forKey: .provider)
     }
 
