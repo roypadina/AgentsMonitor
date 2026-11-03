@@ -13,7 +13,7 @@ public enum OpenRouter {
         id.hasPrefix("pasted:") ? UUID(uuidString: String(id.dropFirst("pasted:".count))) : nil
     }
 
-    private static func money(_ usd: Double, fractionDigits: Int) -> String {
+    static func money(_ usd: Double, fractionDigits: Int) -> String {
         let f = NumberFormatter()
         f.numberStyle = .currency
         f.currencyCode = "USD"
@@ -189,6 +189,28 @@ public struct OpenRouterKeyConfig: Codable, Identifiable, Hashable, Sendable {
         placement = try c.decodeIfPresent(Placement.self, forKey: .placement) ?? .more
         lastName = try c.decodeIfPresent(String.self, forKey: .lastName)
         lastLabel = try c.decodeIfPresent(String.self, forKey: .lastLabel)
+    }
+}
+
+/// `Settings.openRouter`: what is connected, where the balance shows, how spend alerts are delivered.
+public struct OpenRouterSettings: Codable, Equatable, Sendable {
+    public var managementKeyConfigured = false     // avoids a keychain probe at launch
+    public var balancePlacement: Placement = .more
+    public var desktopAlerts = true
+    public var ntfyEnabled = false
+    public var ntfyTopicOverride: String?
+
+    public init() {}
+
+    /// Lenient like `Settings`: a strict throw would reset every setting to its default.
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = OpenRouterSettings()
+        managementKeyConfigured = try c.decodeIfPresent(Bool.self, forKey: .managementKeyConfigured) ?? d.managementKeyConfigured
+        balancePlacement = try c.decodeIfPresent(Placement.self, forKey: .balancePlacement) ?? d.balancePlacement
+        desktopAlerts = try c.decodeIfPresent(Bool.self, forKey: .desktopAlerts) ?? d.desktopAlerts
+        ntfyEnabled = try c.decodeIfPresent(Bool.self, forKey: .ntfyEnabled) ?? d.ntfyEnabled
+        ntfyTopicOverride = try c.decodeIfPresent(String.self, forKey: .ntfyTopicOverride)
     }
 }
 

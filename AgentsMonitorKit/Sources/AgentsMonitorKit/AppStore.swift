@@ -17,6 +17,7 @@ public struct Settings: Codable, Equatable, Sendable {
     public var extraUsageAlerts: Bool = true   // notify when paid extra usage starts moving
     public var providerBadge: ProviderBadgeStyle = .iconAndName
     public var providerColors: Bool = true     // tint the provider badge and account name
+    public var openRouter = OpenRouterSettings()
 
     public init() {}
 
@@ -40,6 +41,7 @@ public struct Settings: Codable, Equatable, Sendable {
         extraUsageAlerts = try c.decodeIfPresent(Bool.self, forKey: .extraUsageAlerts) ?? d.extraUsageAlerts
         providerBadge = try c.decodeIfPresent(ProviderBadgeStyle.self, forKey: .providerBadge) ?? d.providerBadge
         providerColors = try c.decodeIfPresent(Bool.self, forKey: .providerColors) ?? d.providerColors
+        openRouter = try c.decodeIfPresent(OpenRouterSettings.self, forKey: .openRouter) ?? d.openRouter
     }
 }
 
@@ -59,10 +61,21 @@ public final class AppStore {
     /// App assigns Notifier.deliver here — the Kit never imports AppKit/UserNotifications.
     public var onAlerts: (([Alert], Account) -> Void)?
 
+    // OpenRouter (logic in OpenRouterStore.swift; stored properties must live in the class body).
+    public var openRouterKeys: [OpenRouterKeyConfig] = []
+    public var openRouterState: OpenRouterState = .idle
+    public var spendRules: [SpendRule] = []
+    /// Popover rows shown as full cards; memory only.
+    public var expandedAccounts: Set<UUID> = []
+    var openRouterSamples: [String: [OpenRouterSample]] = [:]   // last 3 days, per key, oldest first
+    var lastOpenRouterSnapshot: OpenRouterSnapshot?
+    let openRouterClient = OpenRouterClient()
+    let openRouterHistory = OpenRouterHistory()
+
     private let credentialStore = CredentialStore()
     private let usageClient = UsageClient()
     private let codexClient = CodexUsageClient()
-    private var alertEngine = AlertEngine()
+    var alertEngine = AlertEngine()
     private var backoffState: [UUID: BackoffLadder] = [:]
     private var rateLimitedUntil: [UUID: Date] = [:]
     /// Last good snapshot per account, kept so a transient failure never blanks the rows.
@@ -74,6 +87,8 @@ public final class AppStore {
     private static let settingsKey = "AgentsMonitor.settings"
     private static let alertMemoryKey = "AgentsMonitor.alertMemory"
     private static let scannedProvidersKey = "AgentsMonitor.scannedProviders"
+    private static let openRouterKeysKey = "AgentsMonitor.openRouterKeys"
+    private static let spendRulesKey = "AgentsMonitor.spendRules"
     private static let log = Logger(subsystem: "com.roy.agentsmonitor", category: "poll")
 
     public init() {}
@@ -93,6 +108,15 @@ public final class AppStore {
         // Restore alert de-dupe memory so a relaunch doesn't re-fire everything already alerted.
         if let data = UserDefaults.standard.data(forKey: Self.alertMemoryKey) {
             alertEngine.restoreMemory(from: data)
+        }
+        // Before the save() below, which writes these two back.
+        if let data = UserDefaults.standard.data(forKey: Self.openRouterKeysKey),
+           let decoded = try? JSONDecoder().decode([OpenRouterKeyConfig].self, from: data) {
+            openRouterKeys = decoded
+        }
+        if let data = UserDefaults.standard.data(forKey: Self.spendRulesKey),
+           let decoded = try? JSONDecoder().decode([SpendRule].self, from: data) {
+            spendRules = decoded
         }
 
         if let data = UserDefaults.standard.data(forKey: Self.accountsKey),
@@ -117,6 +141,11 @@ public final class AppStore {
             }
             lastSnapshot[account.id] = Self.lastKnownSnapshot(cache: cache, latest: history[account.id]?.last)
         }
+
+        let openRouterStart = Date().addingTimeInterval(-Double(OpenRouterHistory.keepDays) * 86400)
+        openRouterHistory.prune(before: openRouterStart)
+        openRouterSamples = Dictionary(grouping: openRouterHistory.load(since: openRouterStart), by: \.id)
+        expandedAccounts = accounts.count <= 2 ? Set(accounts.map(\.id)) : []
     }
 
     /// The newer of the shared cache's last body (full detail) and the last history sample
@@ -212,14 +241,21 @@ public final class AppStore {
         if let data = try? JSONEncoder().encode(settings) {
             UserDefaults.standard.set(data, forKey: Self.settingsKey)
         }
+        if let data = try? JSONEncoder().encode(openRouterKeys) {
+            UserDefaults.standard.set(data, forKey: Self.openRouterKeysKey)
+        }
+        if let data = try? JSONEncoder().encode(spendRules) {
+            UserDefaults.standard.set(data, forKey: Self.spendRulesKey)
+        }
     }
 
     /// Concurrent per-account; keychain read + network fetch happen off-main inside `fetch`.
-    public func refresh() async {
+    /// `force` skips the 20 s floor — only after Connect / Add Key.
+    public func refresh(force: Bool = false) async {
         guard !isRefreshing else { return }
         // Floor between polls: the Refresh button, a wake-up and the poll timer can otherwise
         // land on top of each other and spend three requests per account for one screenful.
-        if let last = lastRefresh, Date().timeIntervalSince(last) < Self.minRefreshInterval { return }
+        if !force, let last = lastRefresh, Date().timeIntervalSince(last) < Self.minRefreshInterval { return }
         isRefreshing = true
         defer { isRefreshing = false; lastRefresh = Date() }
 
@@ -237,6 +273,12 @@ public final class AppStore {
         let credentialStore = self.credentialStore
         let usageClient = self.usageClient
         let codexClient = self.codexClient
+        let openRouterConfigs = openRouterKeys
+        let managementKeyConfigured = settings.openRouter.managementKeyConfigured
+        let openRouterClient = self.openRouterClient
+        async let openRouter = Self.fetchOpenRouter(configs: openRouterConfigs,
+                                                    managementKeyConfigured: managementKeyConfigured,
+                                                    client: openRouterClient)
         let results = await withTaskGroup(of: (UUID, AccountState).self) { group in
             for account in toFetch {
                 group.addTask {
@@ -293,6 +335,7 @@ public final class AppStore {
             }
         }
 
+        applyOpenRouter(await openRouter, now: now)
         usageHistory.append(newSamples)
 
         // Persist the de-dupe memory (cheap: a few hundred bytes once per poll).
@@ -429,8 +472,8 @@ public final class AppStore {
     /// independent of the displayed metric, so the dot always means "how close to being stopped".
     /// nil means no data yet (drawn gray).
     public struct MenuBarSegment: Identifiable, Sendable, Equatable {
-        public let id: UUID
-        public let tag: String?
+        public let id: String          // account UUID string, OpenRouter key id, or "openrouter-balance"
+        public var tag: String?
         public let dotPercent: Int?
         public let showDot: Bool
         public let text: String
@@ -439,7 +482,9 @@ public final class AppStore {
     public var menuBarSegments: [MenuBarSegment] {
         let shown = menuBarAccounts
         let tags = Self.menuBarTags(for: shown)
-        let single = shown.count == 1
+        var openRouter = openRouterMenuBarSegments
+        let single = shown.count + openRouter.count == 1
+        if single, !openRouter.isEmpty { openRouter[0].tag = nil }
 
         return shown.compactMap { account -> MenuBarSegment? in
             let snapshot = snapshot(for: account.id)
@@ -463,12 +508,12 @@ public final class AppStore {
             guard showDot || !fields.isEmpty else { return nil }
             // No numbers -> no tag either: a bare "c · c2" adds nothing the dot order doesn't
             // already say, and the point of dots-only mode is minimum width.
-            return MenuBarSegment(id: account.id,
+            return MenuBarSegment(id: account.id.uuidString,
                                   tag: (single || fields.isEmpty) ? nil : tags[account.id],
                                   dotPercent: snapshot?.blockingPercent,
                                   showDot: showDot,
                                   text: fields.joined(separator: " "))
-        }
+        } + openRouter
     }
 
     /// Text-only rendering (no dots) — used for logging, tests, and as the accessibility title.
