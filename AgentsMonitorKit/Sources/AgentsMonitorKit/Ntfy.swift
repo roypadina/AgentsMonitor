@@ -77,6 +77,7 @@ public enum Ntfy {
         case "weekly_scoped": return "weekly-model-limit"
         case "spendBurst", "spend": return "extra-usage"
         case "test": return "test"
+        case "or": return "openrouter-spend"
         default: return key.lowercased().replacingOccurrences(of: " ", with: "-")
         }
     }

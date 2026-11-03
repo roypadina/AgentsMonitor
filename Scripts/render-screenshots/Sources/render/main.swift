@@ -99,12 +99,99 @@ MainActor.assumeIsolated {
     store.accounts = snaps.map(\.0)
     for (a, s) in snaps { store.states[a.id] = .ok(s); store.history[a.id] = samples(for: a, snap: s) }
     store.lastRefresh = now
-    render(PopoverView(), size: CGSize(width: 440, height: 0), name: "popover")
+    // Every card expanded and turned over to its graphs.
+    store.expandedAccounts = Set(snaps.map(\.0.id))
     RenderHooks.flipCards = true
-    render(PopoverView(), size: CGSize(width: 440, height: 0), name: "graphs")
+    render(PopoverView(), size: CGSize(width: 460, height: 0), name: "graphs")
     RenderHooks.flipCards = false
-    store.accounts = snaps.map(\.0)
+    store.expandedAccounts = []
+    // One of each placement in the Show in pop-ups.
+    store.accounts = zip(snaps.map(\.0), [Placement.menuBar, .popover, .more, .menuBar]).map { var a = $0; a.placement = $1; return a }
     render(AccountsTab().frame(width: 460, height: 340), size: CGSize(width: 460, height: 340), name: "settings-accounts")
+
+    // Compact popover: four Claude accounts (one with an expired login) and Codex, collapsed, then one expanded.
+    let client = claude("Client", "/Users/example/.claude-client")
+    store.accounts = [work, personal, client, side, codex]
+    store.states[client.id] = .needsReauth
+    store.states[side.id] = .ok(UsageSnapshot(limits: [limit("session", 0, resetsIn: 4.8 * h), limit("weekly_all", 100, resetsIn: 2.6 * h),
+                                                       limit("weekly_scoped", 36, resetsIn: 2.6 * h, model: "Fable")], spend: nil))
+    store.expandedAccounts = []
+    render(PopoverView(), size: CGSize(width: 460, height: 0), name: "popover-compact")
+    render(PopoverView(), size: CGSize(width: 460, height: 0), name: "popover-compact-light", dark: false)
+    store.expandedAccounts = [personal.id]
+    render(PopoverView(), size: CGSize(width: 460, height: 0), name: "popover-expanded")
+    store.expandedAccounts = []
+
+    // OpenRouter: two keys pinned to the popover, the rest on the More page (one failing, two hidden).
+    func key(_ name: String, _ tail: String, day: Double, week: Double, month: Double,
+             limit: Double? = nil, left: Double? = nil, reset: String? = nil, error: String? = nil) -> OpenRouterKeyUsage {
+        OpenRouterKeyUsage(id: "hash-\(name)", name: name, label: "sk-or-v1-\(tail)...\(tail)", limit: limit, limitRemaining: left,
+                           limitReset: reset, usage: month * 3, usageDaily: day, usageWeekly: week, usageMonthly: month, error: error)
+    }
+    let usages = [
+        key("prod-agent", "c3f", day: 3.2, week: 18.4, month: 61.1, limit: 20, left: 8, reset: "daily"),
+        key("research", "9a1", day: 0, week: 2.1, month: 9.8),
+        key("ci-runner", "77b", day: 0.41, week: 3.9, month: 14.02, limit: 100, left: 100),
+        key("staging", "4d2", day: 1.08, week: 1.08, month: 1.08),
+        key("eval-batch", "e5a", day: 12.5, week: 88.2, month: 240.75, limit: 300, left: 59.25, reset: "monthly"),
+        key("docs-bot", "0f9", day: 0.02, week: 0.31, month: 1.2),
+        key("nightly-etl", "b18", day: 2.75, week: 19.6, month: 70.4),
+        key("support-bot", "a70", day: 0.88, week: 5.12, month: 21.9),
+        key("demo-app", "3c6", day: 0, week: 0, month: 0.5),
+        key("load-test", "d41", day: 0, week: 41.0, month: 41.0, limit: 50, left: 9, reset: "weekly"),
+        key("my-laptop", "e21", day: 0, week: 0, month: 0, error: "Key rejected — paste a new one in Settings"),
+        key("playground", "71c", day: 0, week: 0, month: 0.1),
+        key("old-scripts", "2b0", day: 0, week: 0, month: 0),
+    ]
+    store.openRouterKeys = usages.enumerated().map { index, usage in
+        OpenRouterKeyConfig(id: usage.id, source: usage.error == nil ? .managed : .pasted,
+                            placement: index == 0 ? .popover : index == 1 ? .menuBar : index >= 11 ? .hidden : .more,
+                            lastName: usage.name, lastLabel: usage.label)
+    }
+    store.settings.openRouter.managementKeyConfigured = true
+    store.openRouterState = .ok(OpenRouterSnapshot(keys: usages, balance: OpenRouterBalance(totalCredits: 100, totalUsage: 57.83)))
+    render(PopoverView(), size: CGSize(width: 460, height: 0), name: "popover")
+    render(PopoverView(), size: CGSize(width: 460, height: 0), name: "popover-openrouter-light", dark: false)
+    var archive = claude("Archive", "/Users/example/.claude-archive")
+    archive.placement = .more
+    store.accounts.append(archive)
+    store.states[archive.id] = .ok(snaps[2].1)
+    render(MorePage(filter: .constant(""), onBack: {}, onRepaste: { _ in }), size: CGSize(width: 460, height: 0), name: "popover-more")
+    store.openRouterState = .stale(OpenRouterSnapshot(keys: usages, balance: OpenRouterBalance(totalCredits: 100, totalUsage: 57.83),
+                                                      fetchedAt: now.addingTimeInterval(-720)),
+                                   error: "Can't reach OpenRouter: timed out")
+    render(MorePage(filter: .constant(""), onBack: {}, onRepaste: { _ in }), size: CGSize(width: 460, height: 0), name: "more-page-stale", dark: false)
+    store.openRouterState = .ok(OpenRouterSnapshot(keys: [], managementError: "Management key expired — paste a new one in Settings"))
+    store.openRouterKeys = []
+    store.accounts.removeLast()
+    render(PopoverView(), size: CGSize(width: 460, height: 0), name: "popover-openrouter-error")
+    render(MorePage(filter: .constant(""), onBack: {}, onRepaste: { _ in }), size: CGSize(width: 460, height: 0), name: "more-page-empty")
+
+    // Settings → OpenRouter (pane size as in SettingsWindow) with four keys (one pasted) so the four example rules fit, then the two sheets.
+    let settingsKeys = [0, 1, 4, 10].map { usages[$0] }
+    store.openRouterKeys = settingsKeys.enumerated().map { index, usage in
+        OpenRouterKeyConfig(id: usage.id, source: usage.error == nil ? .managed : .pasted,
+                            placement: index == 0 ? .popover : index == 1 ? .menuBar : .more,
+                            lastName: usage.name, lastLabel: usage.label)
+    }
+    store.openRouterState = .ok(OpenRouterSnapshot(keys: settingsKeys, balance: OpenRouterBalance(totalCredits: 100, totalUsage: 57.83)))
+    store.spendRules = [
+        SpendRule(scope: .allKeys, window: .utcWeek, threshold: 20),
+        SpendRule(scope: .eachKey, window: .lastHour, threshold: 5),
+        SpendRule(kind: .capRemaining, scope: .key("hash-prod-agent"), unit: .percent, threshold: 10, level: .critical),
+        SpendRule(kind: .balance, threshold: 10),
+    ]
+    render(OpenRouterTab().frame(width: 520, height: 820), size: CGSize(width: 520, height: 820), name: "settings-openrouter")
+    render(OpenRouterTab().frame(width: 520, height: 820), size: CGSize(width: 520, height: 820), name: "settings-openrouter-light", dark: false)
+    render(AddOpenRouterKeySheet(), size: CGSize(width: 400, height: 0), name: "add-key-sheet")
+    render(SpendRuleSheet(rule: SpendRule(scope: .allKeys, window: .utcWeek, threshold: 20), isNew: true),
+           size: CGSize(width: 440, height: 0), name: "spend-rule")
+    render(SpendRuleSheet(rule: store.spendRules[2], isNew: false), size: CGSize(width: 440, height: 0), name: "spend-rule-sheet-cap", dark: false)
+    store.openRouterKeys = []
+    store.spendRules = []
+    store.settings.openRouter.managementKeyConfigured = false
+    store.openRouterState = .idle
+    render(OpenRouterTab().frame(width: 520, height: 820), size: CGSize(width: 520, height: 820), name: "settings-openrouter-empty")
 
     let alerts = [
         Alert(accountId: personal.id, accountName: "Personal", key: "weekly_all", title: "Personal: Week at 93%",

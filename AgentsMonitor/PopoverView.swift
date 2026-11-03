@@ -10,25 +10,26 @@ private let credentialStore = CredentialStore()
 struct PopoverView: View {
     private let store = AppStore.shared
     @State private var repasteAccount: Account?
+    // Kept across close and reopen of the popover; Back (⌘[) returns to Main.
+    @State private var page: Page = .main
+    @State private var filter = ""
+
+    private enum Page { case main, more }
 
     var body: some View {
         VStack(spacing: 0) {
-            if store.accounts.isEmpty {
+            if page == .more {
+                MorePage(filter: $filter, onBack: { page = .main }, onRepaste: { repasteAccount = $0 })
+            } else if store.accounts.isEmpty && !store.showsMoreEntry {
                 emptyState
-            } else if store.accounts.count < 5 {
-                // Plain VStack — a bare ScrollView collapses to zero height inside a
-                // MenuBarExtra window (content-sized, no space to fill).
-                cards
             } else {
-                // From 5 accounts the cards outgrow the screen and push the footer (Settings, Quit)
-                // off it. An explicit height is what keeps the ScrollView from collapsing.
-                ScrollView { cards }
-                    .frame(height: min(860, (NSScreen.main?.visibleFrame.height ?? 900) - 120))
+                // Taller than the screen allows, the rows scroll so the footer (Settings, Quit) stays on it.
+                CappedScroll(maxHeight: min(700, (NSScreen.main?.visibleFrame.height ?? 900) - 120)) { rows }
             }
             Divider()
             footer
         }
-        .frame(width: 440)
+        .frame(width: 460)
         .sheet(item: $repasteAccount) { account in
             RemoteCredentialsSheet(
                 mode: .repaste(accountId: account.id, accountName: account.name),
@@ -37,12 +38,13 @@ struct PopoverView: View {
         }
     }
 
-    private var cards: some View {
-        VStack(spacing: 10) {
-            ForEach(store.accounts) { account in
-                AccountCard(account: account, state: store.states[account.id] ?? .idle) {
-                    repasteAccount = account
-                }
+    private var rows: some View {
+        VStack(spacing: 6) {
+            AccountList(accounts: store.popoverAccounts) { repasteAccount = $0 }
+            if store.showsMoreEntry {
+                OpenRouterHeaderRow { page = .more }
+                    .padding(.top, store.popoverAccounts.isEmpty ? 0 : 6)
+                ForEach(store.popoverKeys) { OpenRouterKeyRow(config: $0) }
             }
         }
         .padding(12)
@@ -102,12 +104,56 @@ struct PopoverView: View {
     }
 }
 
+// MARK: - Account list
+
+/// Compact rows; an expanded one (`AppStore.expandedAccounts`) shows today's card in its place.
+@MainActor
+struct AccountList: View {
+    let accounts: [Account]
+    var onRepaste: (Account) -> Void
+    private let store = AppStore.shared
+
+    var body: some View {
+        ForEach(accounts) { account in
+            let state = store.states[account.id] ?? .idle
+            if store.expandedAccounts.contains(account.id) {
+                AccountCard(account: account, state: state, onRepaste: { onRepaste(account) },
+                            onCollapse: { toggle(account.id) })
+            } else {
+                AccountRow(account: account, state: state, onToggle: { toggle(account.id) },
+                           onRepaste: { onRepaste(account) })
+            }
+        }
+    }
+
+    private func toggle(_ id: UUID) { store.expandedAccounts.formSymmetricDifference([id]) }
+}
+
+/// Content at its own height up to `maxHeight`, then a ScrollView of exactly `maxHeight`. A bare
+/// ScrollView collapses to zero height in a MenuBarExtra window, and a fixed one leaves blank space
+/// under short content, so the content is measured and scrolls only when it must.
+struct CappedScroll<Content: View>: View {
+    let maxHeight: CGFloat
+    @ViewBuilder var content: Content
+    @State private var height: CGFloat = 0
+
+    var body: some View {
+        let measured = content.onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height = $0 }
+        if height > maxHeight {
+            ScrollView { measured }.frame(height: maxHeight)
+        } else {
+            measured
+        }
+    }
+}
+
 // MARK: - Account card
 
 private struct AccountCard: View {
     let account: Account
     let state: AccountState
     var onRepaste: () -> Void
+    var onCollapse: (() -> Void)?
     @State private var flipped = RenderHooks.flipCards
     @State private var span: GraphSpan = .day
     private let store = AppStore.shared
@@ -166,6 +212,14 @@ private struct AccountCard: View {
                     .padding(.horizontal, 6).padding(.vertical, 2)
                     .background(Color.secondary.opacity(0.15), in: Capsule())
                     .help("Graph span — click for the next one")
+            }
+            if let onCollapse {
+                Button(action: onCollapse) {
+                    Image(systemName: "chevron.up").font(.caption)
+                }
+                .buttonStyle(.borderless)
+                .help("Hide details")
+                .accessibilityLabel("Hide details")
             }
             if snapshot != nil {
                 Button {
@@ -323,22 +377,15 @@ private struct LimitRow: View {
             .frame(height: 12)
             if let resetsAt = limit.resetsAt {
                 HStack(spacing: 4) {
-                    Text("resets in \(Self.countdown(to: resetsAt))").foregroundStyle(.secondary)
+                    Text("resets in \(shortCountdown(to: resetsAt))").foregroundStyle(.secondary)
                     if let full {
                         Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-                        Text("full in ~\(Self.countdown(to: full)) at this pace").foregroundStyle(.secondary)
+                        Text("full in ~\(shortCountdown(to: full)) at this pace").foregroundStyle(.secondary)
                     }
                 }
                 .font(.caption2)
             }
         }
-    }
-
-    private static func countdown(to date: Date, now: Date = Date()) -> String {
-        let seconds = max(0, Int(date.timeIntervalSince(now)))
-        let h = seconds / 3600
-        let m = (seconds % 3600) / 60
-        return h > 0 ? "\(h)h \(m)m" : "\(m)m"
     }
 }
 

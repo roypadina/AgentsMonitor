@@ -8,9 +8,9 @@
 
 A tiny native macOS menu-bar app that polls the usage endpoints **Claude Code** and **Codex**
 use themselves, for **any number of accounts of either** on this Mac (or pasted in from another
-machine), and alerts you — desktop notification, in-app toast with sound, and
-[ntfy](https://ntfy.sh) push to your phone — before a session, weekly, or spend limit runs out
-from under you.
+machine), plus the spend of your **OpenRouter** API keys, and alerts you — desktop notification,
+in-app toast with sound, and [ntfy](https://ntfy.sh) push to your phone — before a session, weekly,
+or spend limit runs out from under you.
 
 [![macOS](https://img.shields.io/badge/macOS-14%2B-000000?logo=apple&logoColor=white)](https://www.apple.com/macos/)
 [![Universal](https://img.shields.io/badge/universal-Apple%20Silicon%20%7C%20Intel-lightgrey)](#requirements)
@@ -23,7 +23,7 @@ from under you.
 
 <br>
 
-<img src="docs/demo.gif" alt="Agents Monitor in action: usage dots and numbers in the menu bar, a click opens limit bars and reset times, a card flips to its usage graph, and a toast warns when Codex crosses its limit." width="720">
+<img src="docs/demo.gif" alt="Agents Monitor in action: usage dots and numbers in the menu bar, a click opens one compact line per account and per pinned OpenRouter key, a row expands into its card with limit bars and reset times, the OpenRouter row opens the More page with every key's spend, and a toast warns when Codex crosses its limit." width="720">
 
 ```bash
 brew install --cask roypadina/tap/agents-monitor
@@ -31,7 +31,7 @@ brew install --cask roypadina/tap/agents-monitor
 
 <br>
 
-<img src="docs/screenshots/popover.png" alt="Agents Monitor popover: three Claude accounts and one Codex account, each showing Session/Week/Week · Fable progress bars with severity coloring, a pacing tick and a reset countdown, plus a monthly spend row." width="420">
+<img src="docs/screenshots/popover.png" alt="Agents Monitor popover: four Claude accounts and one Codex account as one-line rows with 5h, 7d and Fable meter chips, warning lines under the busy ones, one expired login, then the OpenRouter row with the balance and two pinned keys showing today, week and month spend." width="420">
 
 </div>
 
@@ -54,7 +54,7 @@ Claude Code and the status line in Codex:
 - **Usage graphs** — the chart button on a card turns it over: the same rows as graphs over the
   last 24 hours, 7 days or 30 days (the chip in the card's header switches the span). Every poll
   is kept in `~/Library/Application Support/AgentsMonitor/history.jsonl` for 90 days
-  <br><img src="docs/screenshots/graphs.png" alt="An account card turned over to its graph side: Session, Week, Week · Fable and Spend as line graphs over the last 24 hours." width="393">
+  <br><img src="docs/screenshots/graphs.png" alt="Account cards expanded and turned over to their graph side: Session, Week, Week · Fable and Spend as line graphs over the last 24 hours." width="393">
 - A **"full in ~7h at this pace"** warning under any limit that will run out before it resets at
   the current burn rate
 - A **provider badge** on every account — the agent's mark plus its name, in its own color, with
@@ -62,8 +62,16 @@ Claude Code and the status line in Codex:
   how much shows (icon and name, icon only, name only, hidden) and whether it's colored. The
   color stays on the badge and the stripe: bars and dots mean *severity*, so tinting those by
   provider would read as a health signal
-- Menu-bar label, fully configurable (Settings → General + the per-account **Menu bar**
-  checkbox): pick **which accounts** appear, **which value** each one shows (worst limit,
+- A **compact popover**: one line per account with up to three meter chips (`5h`, `7d`, `F`), a
+  second line only when something needs attention, and a click to expand the full card
+- **OpenRouter keys**: paste one management key and every key in your workspace appears with the
+  credit balance, or paste single keys. Today / week / month spend (OpenRouter's UTC calendar),
+  caps, a **More page** for long key lists, and **spend alerts** ("all keys over $20 this week",
+  "each key over $5 in the last hour", "cap below 10% left", "balance below $10")
+  <br><img src="docs/screenshots/popover-more.png" alt="The More page inside the popover: OpenRouter balance and spend today, a key filter, eleven keys with today, week and month spend, cap bars on four of them, one rejected key, and an account placed on the More page." width="420">
+- **Placement** for every account and key: menu bar and popover, popover only, More page, or hidden
+- Menu-bar label, fully configurable (Settings → General + the per-account **Show in**
+  pop-up): pick **which accounts** appear, **which value** each one shows (worst limit,
   session, weekly, or per-model weekly), plus optional extras per account: the **per-model
   window** shown separately (`F 100%`) and the **extra usage spent** (`$739`)
 - A **usage dot** per account that fades green → yellow → red with session/weekly usage, so the
@@ -108,6 +116,12 @@ There's also a dedicated **extra-usage alert**: the moment paid usage starts bei
 then it stays quiet until spending pauses for 30 minutes. That's the signal that a session has
 stopped being covered by your plan and started costing money. Toggle in Settings → Alerts.
 
+**OpenRouter spend alerts** are rules you add in Settings → OpenRouter: spend over an amount (all
+keys combined, each key or one key; today, this week or this month on OpenRouter's UTC calendar, or
+the last hour or 24 hours as measured from the app's own polls), cap left below an amount or
+percent, or the credit balance below an amount. Each rule is a warning or a critical alert, and
+goes out through the same sinks as one "OpenRouter" sender.
+
 Three sinks, each toggleable per account in Settings:
 - **Desktop** — a standard notification (grant permission once when macOS asks on first launch)
 - **ntfy** — a JSON POST to your server/topic, priority 3 (warning) / 4 (critical); each account
@@ -116,9 +130,13 @@ Three sinks, each toggleable per account in Settings:
 - **Toast** — a floating panel top-right with a slide-and-fade animation and a sound
 
 <div align="center">
-<img src="docs/screenshots/settings-accounts.png" alt="Settings, Accounts tab: four accounts with per-account Desktop, ntfy and Menu bar toggles." width="420">
+<img src="docs/screenshots/settings-accounts.png" alt="Settings, Accounts tab: accounts with per-account Desktop and ntfy toggles and a Show in pop-up set to Menu Bar and Popover, Popover or More Page." width="420">
 <br><br>
 <img src="docs/screenshots/toasts.png" alt="Agents Monitor toast notifications stacking top-right: a weekly-limit alert, an extra-usage alert and a Codex session alert." width="420">
+<br><br>
+<img src="docs/screenshots/settings-openrouter.png" alt="Settings, OpenRouter tab: a connected management key with the balance, four keys with their placement pop-ups, and four spend alerts with Desktop and ntfy delivery." width="420">
+<br><br>
+<img src="docs/screenshots/spend-rule.png" alt="The Add Spend Alert sheet: alert when spend, cap left or balance; keys, window, amount and level." width="420">
 </div>
 
 ## Requirements
@@ -190,7 +208,7 @@ dialog. Agents Monitor suppresses that keychain UI and falls back to Apple-signe
 silently — so it works headless, survives rebuilds, and never interrupts you with a password
 prompt. Codex keeps its credentials in a file instead, so that path needs none of this.
 
-The items Agents Monitor saves itself (remote accounts, ntfy access token and fallback URL) are
+The items Agents Monitor saves itself (remote accounts, OpenRouter keys, ntfy access token and fallback URL) are
 created through the same tool, so every new version reads them without a prompt too. Like Claude
 Code's own credentials, they are then readable through `/usr/bin/security` by any process running
 as you.
@@ -205,7 +223,7 @@ as you.
 ## Build & test
 
 ```bash
-swift test --package-path AgentsMonitorKit          # 72 unit tests (parsing for both providers, derivation, alert engine, credentials, settings, menu bar, defaults migration, usage history)
+swift test --package-path AgentsMonitorKit          # 132 unit tests (parsing for both providers and OpenRouter, derivation, alert engine, spend rules, placement, credentials, settings, menu bar, defaults migration, usage history)
 xcodebuild -workspace AgentsMonitor.xcworkspace -scheme AgentsMonitor \
   -configuration Release -derivedDataPath build build
 cp -R build/Build/Products/Release/AgentsMonitor.app /Applications/
@@ -249,18 +267,24 @@ every request (±1–2s observed) — exact comparison caused an alert on every 
   usage endpoint how much of your limits you have used. It never refreshes, rewrites or deletes
   those logins.
 - **What leaves your Mac.** Only those usage requests: `api.anthropic.com` (Claude) and
-  `chatgpt.com` (Codex), each carrying that account's own access token. If you turn on **ntfy**,
+  `chatgpt.com` (Codex), each carrying that account's own access token, and `openrouter.ai` for the OpenRouter keys you add. If you turn on **ntfy**,
   alert text (account name, limit, percentage) goes to the ntfy server and topic you configure.
   Nothing else: no analytics, no telemetry, no update checks, no third parties.
 - **Remote accounts.** If you paste credentials for an account that lives on another machine, the
   app stores them in its own device-only Keychain item (not iCloud, not UserDefaults, never
   logged). Because it owns that login, it refreshes those tokens itself by calling Anthropic's
   token endpoint (`platform.claude.com`) when they expire. Local accounts are never refreshed.
+- **OpenRouter.** Keys you add (a management key, pasted API keys) are stored in the app's own
+  Keychain items and sent only to `openrouter.ai`, in the `Authorization` header, to read usage,
+  caps and your credit balance. The app keeps the key list without secrets (names, masked labels,
+  placement) in its preferences, and a 3-day spend history in
+  `~/Library/Application Support/AgentsMonitor/openrouter-history.jsonl` for the last-hour and
+  last-24-hours alerts. Keys are never shown in full or logged.
 - **What it keeps on disk.** Your account list and settings in the app's preferences, a usage
   history in `~/Library/Application Support/AgentsMonitor/history.jsonl` (percentages, reset times and spend
   per account, 90 days), and a short-lived response cache in `~/Library/Caches/`.
 - **Not affiliated.** Agents Monitor is an independent project, not affiliated with, endorsed by
-  or sponsored by Anthropic or OpenAI. "Claude" and "Codex" are their products' names. The usage
+  or sponsored by Anthropic, OpenAI or OpenRouter. "Claude" and "Codex" are their products' names. The usage
   endpoints it calls are undocumented and may change or stop working.
 
 ## Caveats

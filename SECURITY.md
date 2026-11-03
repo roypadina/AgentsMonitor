@@ -15,6 +15,7 @@ and the report disclosed, with credit unless you prefer otherwise.
 ## Scope
 
 Relevant areas: reading the keychain items of other apps (via `/usr/bin/security`), storing
-pasted remote credentials in the keychain, the usage-endpoint requests, and the optional
+pasted remote credentials and OpenRouter keys in the keychain, the usage-endpoint requests
+(including `openrouter.ai`), and the optional
 [ntfy](https://ntfy.sh) push. Tokens are never logged or written to disk by the app, and a
 local account's OAuth token is never refreshed by it.

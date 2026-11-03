@@ -199,8 +199,6 @@ struct AccountsTab: View {
                     .toggleStyle(.checkbox)
                 Toggle("ntfy", isOn: binding(for: account, \.ntfyEnabled))
                     .toggleStyle(.checkbox)
-                Toggle("Menu bar", isOn: binding(for: account, \.showInMenuBar))
-                    .toggleStyle(.checkbox)
                 TextField("topic override", text: bindingOptional(for: account, \.ntfyTopicOverride))
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 120)
@@ -209,6 +207,14 @@ struct AccountsTab: View {
                 }
             }
             .font(.caption)
+            // Own line: "Menu Bar and Popover" does not fit next to the checkboxes at 520 pt.
+            Picker("Show in", selection: placementBinding(for: account)) {
+                ForEach(Placement.allCases, id: \.self) { Text($0.label).tag($0) }
+            }
+            .pickerStyle(.menu)
+            .controlSize(.small)
+            .font(.caption)
+            .fixedSize()
         }
         .padding(.vertical, 4)
     }
@@ -226,6 +232,13 @@ struct AccountsTab: View {
                 store.accounts[idx][keyPath: keyPath] = newValue
                 store.save()
             }
+        )
+    }
+
+    private func placementBinding(for account: Account) -> Binding<Placement> {
+        Binding(
+            get: { store.accounts.first(where: { $0.id == account.id })?.placement ?? .menuBar },
+            set: { store.setPlacement($0, forAccount: account.id) }
         )
     }
 
@@ -511,7 +524,7 @@ struct GeneralTab: View {
                 }
                 VStack(alignment: .leading, spacing: 2) {
                     Text(store.menuBarText.isEmpty ? "Preview: (hidden)" : "Preview: \(store.menuBarText)")
-                    Text("Choose which accounts appear with the Menu bar checkbox in the Accounts tab.")
+                    Text("Choose where each account appears with Show in, in the Accounts tab.")
                         .foregroundStyle(.secondary)
                 }
                 .font(.caption)

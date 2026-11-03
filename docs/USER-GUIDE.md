@@ -8,6 +8,11 @@
   - [Local accounts](#local-accounts)
   - [Codex accounts](#codex-accounts)
   - [Remote accounts](#remote-accounts)
+  - [Placement](#placement)
+- [OpenRouter](#openrouter)
+  - [Management key and pasted keys](#management-key-and-pasted-keys)
+  - [The More page](#the-more-page)
+  - [Spend alerts](#spend-alerts)
 - [Alerts](#alerts)
   - [How a level is decided](#how-a-level-is-decided)
   - [De-dupe and re-arm](#de-dupe-and-re-arm)
@@ -30,12 +35,20 @@ always plain text/icon. Color lives in the popover and in toasts instead.
 
 ## Popover
 
-Click the menu bar icon to open the popover: one card per account, each with a row per limit
-plus a spend row when applicable.
+Click the menu bar icon to open the popover: one compact row per account. A row is the account
+name, its provider badge and up to three **meter chips**: a short tag, a small bar and the percent
+(`5h` = Session, `7d` = Week, a model initial such as `F` = Week · Fable, `CR` = Code Review for
+Codex). A **second line** appears only when the account needs attention: a login problem, a window
+at warning or critical, a blocked window, or a "full in ~Xh at this pace" warning. A healthy
+account is one short line.
 
-<img src="screenshots/popover.png" alt="Agents Monitor popover showing three account cards" width="420">
+Click a row (or its chevron) to **expand** it into the full card described below; the **chevron up**
+button in the card's header collapses it again. With one or two accounts every row starts expanded.
+Which rows are expanded is remembered until you quit the app.
 
-**Per limit row:**
+<img src="screenshots/popover.png" alt="Agents Monitor popover: five accounts as one-line rows with meter chips, one expired login, then the OpenRouter row and two pinned keys" width="420">
+
+**Per limit row** (in the expanded card):
 - **Label** — `Session` (the rolling 5-hour window), `Week` (7-day window), or
   `Week · <model>` for a model-scoped weekly limit (e.g. `Week · Fable`). Any limit kind
   Anthropic adds in the future renders the same way automatically — no update required.
@@ -64,14 +77,18 @@ the header to switch, and the bar button to turn it back. Every poll is saved to
 `~/Library/Application Support/AgentsMonitor/history.jsonl` (90 days kept), so the graphs fill
 in as the app runs.
 
-<img src="screenshots/graphs.png" alt="An account card turned over to its graph side, 24-hour span" width="393">
+<img src="screenshots/graphs.png" alt="Account cards expanded and turned over to their graph side, 24-hour span" width="393">
 
 **Error states**, shown in place of the limit rows when something's wrong with that account:
 see the [Troubleshooting table](#troubleshooting) for what each one means and how to fix it.
 
 **Footer:** last-refresh time, **Refresh** (manual poll, ignores the interval, **⌘R**), **Settings**
-(**⌘,**), **About**, **Support**, **Quit** (**⌘Q**). With 5 or more accounts the cards scroll, so the
-footer stays on screen. With no accounts the popover shows an **Add Account…** button.
+(**⌘,**), **About**, **Support**, **Quit** (**⌘Q**). When the rows grow taller than the screen allows
+they scroll, so the footer stays on screen. With no accounts the popover shows an **Add Account…** button.
+
+**OpenRouter row:** when OpenRouter is set up (or an account is placed on the More page), a row at
+the bottom reads **OpenRouter · balance $42.17 · $3.20 today · 14 keys ›**, with the keys you pinned
+to the popover below it. Click it to open the [More page](#the-more-page).
 
 ## Accounts
 
@@ -150,6 +167,107 @@ a fresh copy from the source machine. Remote accounts work best for machines you
 actively running Claude Code on concurrently — a spare laptop, a CI account, a profile you only
 touch occasionally.
 
+### Placement
+
+Every account, every OpenRouter key and the OpenRouter balance has a placement. Each level includes
+the ones below it:
+
+| Placement | Menu bar | Popover | More page |
+|---|---|---|---|
+| **Menu Bar and Popover** | yes | yes | yes |
+| **Popover** | no | yes | yes |
+| **More Page** | no | no | yes |
+| **Hidden** | no | no | no (counted in the More page footer) |
+
+Hidden items are still polled and still alert. Set an account's placement with **Show in** in
+Settings → Accounts, and a key's in Settings → OpenRouter or from its ⋯ menu on the More page.
+Accounts start in the menu bar; OpenRouter keys found through a management key start on the More page.
+
+## OpenRouter
+
+Agents Monitor can watch any number of [OpenRouter](https://openrouter.ai) API keys: what each one
+spent today, this week and this month, its spending cap when it has one, and your credit balance.
+OpenRouter is polled with the accounts, on the same interval and the same **Refresh**.
+
+### Management key and pasted keys
+
+There are two ways to add keys, and you can use both:
+
+- **Management key** (Settings → OpenRouter → **Connect**). Create one on openrouter.ai under Keys →
+  Management keys. Agents Monitor checks it once, then lists every key in your workspace and the
+  credit balance. New keys appear on their own (on the More page); a key you delete or disable on
+  OpenRouter leaves the app. A regular API key pasted here is refused with "That's a regular API
+  key, not a management key."
+- **Pasted keys** (Settings → OpenRouter → **Add Key…**). Paste one regular API key and an optional
+  nickname. Agents Monitor checks it once and then reads that key's own usage. Use this for keys
+  outside your workspace, or without a management key. A pasted key can be removed (the trash
+  button asks once); a managed key cannot, so set it to **Hidden** instead.
+
+Rename a key by clicking its name in the Settings list (an empty name goes back to OpenRouter's
+name). Drag keys to reorder them: that is their order in the popover. Keys are never shown in
+full; the app shows OpenRouter's own masked form, such as `sk-or-…c3f`.
+
+**Key row:** the name, the masked key, then **Today · Week · Month** in dollars. These are
+OpenRouter's own UTC calendar windows (weeks start Monday), the same numbers as its dashboard. A
+key with a cap gets a second line: a bar and **$12.00 of $20.00 · resets daily in 4h 12m**. A key
+whose check failed shows the error on its second line instead.
+
+**Menu bar:** a key placed in the menu bar shows as `o` plus the digits in its name (`o1`, `o2`, …
+when two would clash). Its text is a percent when the key has a cap or a spend rule (and **Show
+percent** is on), otherwise today's spend (`$3.20`). Its dot is the cap used, else the highest
+spend rule's progress (spent ÷ threshold), else no dot. The balance shows as plain text (`$42`),
+never with a dot.
+
+**Secrets:** the management key is stored in the Keychain item `AgentsMonitor-openrouter-management`,
+each pasted key in `AgentsMonitor-openrouter-key-<UUID>`. Keys are sent only to `openrouter.ai`.
+Disconnecting the management key (**Remove…**, asks once) deletes it from the Keychain and drops the
+keys it listed; pasted keys stay.
+
+<img src="screenshots/settings-openrouter.png" alt="Agents Monitor Settings, OpenRouter tab: management key, keys with placement pop-ups, spend alerts" width="440">
+
+### The More page
+
+Click the OpenRouter row at the bottom of the popover to open the More page, in the same popover.
+It shows the balance and today's total, every key that is not hidden, and the accounts placed on
+More Page. Each key's ⋯ menu changes its placement on the spot. With more than eight keys a filter
+field appears. **Back** (**⌘[**) returns to the main page; **Settings…** opens Settings →
+OpenRouter. When OpenRouter cannot be reached, the summary line keeps the last numbers, says how old
+they are, and offers **Try Again**.
+
+<img src="screenshots/popover-more.png" alt="The More page: OpenRouter balance, a key filter, keys with today, week and month spend and cap bars, and an account placed there" width="420">
+
+### Spend alerts
+
+Add rules in Settings → OpenRouter → **Add Rule…**. A rule watches one of three things:
+
+| Alert when | Keys | Fires when |
+|---|---|---|
+| **Spend** | all keys combined, each key, or one key | spend in the window is **over** the amount |
+| **Cap left** | each key, or one key | what is left of the cap is **below** the amount (dollars or percent) |
+| **Balance** | — (needs a management key) | the credit balance is **below** the amount |
+
+Spend windows: **Today**, **This week** and **This month** follow OpenRouter's UTC calendar, as on its
+dashboard. **Last hour** and **Last 24 hours** are measured by Agents Monitor from its own polls,
+using a small history file (`~/Library/Application Support/AgentsMonitor/openrouter-history.jsonl`,
+3 days kept). A key added a moment ago has only part of that window measured, so it under-counts at
+first.
+
+When a rule fires:
+
+- **Calendar windows and caps** fire once per window, and again in the next window if still over.
+- **Rolling windows and the balance** fire when the value crosses the line, re-arm when it drops back
+  (spend ages out of the window, the balance is topped up), and fire again on the next crossing.
+- A rule that is already breached when you create it fires on the next poll.
+
+Alert texts look like **OpenRouter — prod-agent** / "$5.20 spent in the last hour · over $5.00",
+**OpenRouter — all keys** / "$21.40 spent this week (UTC) · over $20.00", **OpenRouter — prod-agent
+cap** / "$1.20 of $20.00 left · below $2.00", **OpenRouter — balance** / "$8.50 left · below $10.00".
+Each rule is a warning or a critical alert. They are delivered as one "OpenRouter" sender with its own
+**Desktop** and **ntfy** switches and topic override (Settings → OpenRouter); toast and sound follow
+Settings → General. Untick a rule to pause it.
+
+<img src="screenshots/spend-rule.png" alt="The Add Spend Alert sheet" width="440">
+
 ## Alerts
 
 ### How a level is decided
@@ -212,16 +330,29 @@ Each toggled per account in Settings → Accounts:
 
 ## Settings
 
-Settings is its own window, with the panes **Accounts**, **Alerts**, **General** and **About** as toolbar tabs, each
+Settings is its own window, with the panes **Accounts**, **OpenRouter**, **Alerts**, **General** and **About** as toolbar tabs, each
 sized to its content. It shows in the Dock and ⌘-Tab while open, reopens on the last pane, and opening
 Agents Monitor again from Applications or Raycast brings it up. All changes are persisted immediately.
 
 **Accounts** — the full account list: rename (the **Rename** button next to each name — an
 inline field, Return or **Save** to commit), per-account **Desktop** and **ntfy** toggles, a
-per-account ntfy topic override, remove, plus the **Add Account** menu: **Claude Code Account…** /
+per-account ntfy topic override, the **Show in** pop-up ([placement](#placement)), remove, plus the
+**Add Account** menu: **Claude Code Account…** /
 **Codex Account…** (folder pickers validated
 against a real keychain entry) and **Remote Claude Account…** (paste sheet). A remote account
 showing "Credentials expired" gets a **Repaste…** button right on its row.
+
+**OpenRouter** — see [OpenRouter](#openrouter):
+- **Management Key** — paste it and click **Connect** (Return works too). A spinner shows while it is
+  checked; a problem shows in plain words under the field ("OpenRouter rejected this key.", "Can't
+  reach OpenRouter: timed out."). **Status** reads **Connected · 14 keys · balance $42.17**, or the
+  management key's current problem. **Remove…** disconnects it.
+- **Keys** — every key with its masked form, Managed or Pasted, and a placement pop-up. Click a name
+  to rename, drag to reorder, trash a pasted key. **Add Key…** opens the paste sheet. **Balance** sets
+  where the balance shows: Popover and More Page both put it in the OpenRouter summary; Menu Bar and
+  Popover also adds it to the menu bar. It needs a management key.
+- **Spend Alerts** — the rules, each with a checkbox (on/off), edit and delete; **Add Rule…** opens the
+  rule sheet. **Delivery**: Desktop, ntfy and a topic override for OpenRouter alerts.
 
 **Alerts:**
 - **Warning / Critical thresholds** — steppers, 1–100%, warning is always kept below critical.
@@ -293,11 +424,13 @@ for the public server.
 | **Anthropic's servers are having problems** / **didn't accept the usage check** | The endpoint answered with an error. | Nothing to do; it usually clears on a later poll. |
 | Any error line under the bars, ending **· numbers from 12 hours ago** | The last poll failed, so the card keeps the last known numbers (also across a relaunch, minus windows that reset since) and says how old they are. Past an hour they leave the menu bar. | Read the error text; the numbers update on the next good poll. |
 | **Couldn't check usage** or **sent usage data this version can't read** | An unclassified failure, or a response format this version doesn't know. | Check the logs (below) for the exact error and open an issue with the log line if it looks like a bug. |
+| **OpenRouter · management key expired** / **That's not a management key** | OpenRouter refused the management key (401), or it is a regular API key (403). | Create a management key on openrouter.ai and paste it in Settings → OpenRouter → **Connect**. |
+| **Key rejected — paste a new one in Settings** (under a pasted key) | OpenRouter refused that pasted key; it was deleted or revoked. | Remove it in Settings → OpenRouter and add the new key with **Add Key…**. |
 
 ## Logs
 
 Everything logs to unified logging under subsystem `com.roy.agentsmonitor` (categories: `poll`,
-`alerts`, `http`, `credentials`, `notify`). No tokens or credential payloads are ever logged;
+`alerts`, `http`, `credentials`, `notify`, `openrouter`). No tokens, keys or credential payloads are ever logged;
 account display names do appear in your local log (it never leaves this Mac).
 
 ```bash
@@ -323,7 +456,7 @@ published.
 
 - **Open source (MIT).** Every line is in this repo.
 - **No network calls beyond the providers' usage endpoints** (`api.anthropic.com`,
-  `chatgpt.com`), Anthropic's token endpoint for *remote* accounts only, and your own ntfy
+  `chatgpt.com`), OpenRouter's API (`openrouter.ai`) for the keys you add, Anthropic's token endpoint for *remote* accounts only, and your own ntfy
   server (if configured). No analytics, no telemetry, no third party ever sees your usage data.
   See [Privacy](../README.md#privacy).
 - **Never refreshes a local account's token.** The one thing that could damage something

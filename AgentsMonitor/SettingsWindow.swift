@@ -30,13 +30,15 @@ final class SettingsWindow {
     static let shared = SettingsWindow()
     private var window: NSWindow?
 
-    func show() {
+    /// `tab`: the pane to open on, by label (the More page's Settings… opens "OpenRouter").
+    func show(tab: String? = nil) {
         if window == nil {
             let tabs = SettingsTabs()
             tabs.tabStyle = .toolbar
             // Each pane gets its own height (SET-8): grouped forms have no intrinsic height. Measured offscreen:
-            // Alerts needs ~670 and General ~760 (both fit below).
+            // Alerts needs ~670, General ~760, OpenRouter ~800 with six keys showing and four rules (all fit below).
             add(tabs, "Accounts", "person.2", AccountsTab(), height: 420)
+            add(tabs, "OpenRouter", "arrow.triangle.branch", OpenRouterTab(), height: 820)
             add(tabs, "Alerts", "bell", AlertsTab(), height: 680)
             add(tabs, "General", "gearshape", GeneralTab(), height: 760)
             add(tabs, "About", "info.circle", AboutTab(), height: 300)
@@ -59,6 +61,10 @@ final class SettingsWindow {
                 for await _ in NotificationCenter.default.notifications(named: NSWindow.willCloseNotification, object: w) { break }
                 self?.window = nil
             }
+        }
+        if let tab, let tabs = window?.contentViewController as? NSTabViewController,
+           let index = tabs.tabViewItems.firstIndex(where: { $0.label == tab }) {
+            tabs.selectedTabViewItemIndex = index   // didSelect updates the title and the remembered pane
         }
         if let window { AccessoryWindows.shared.show(window) }
     }

@@ -16,11 +16,11 @@ swiftc -swift-version 5 -O -emit-library -static -module-name AgentsMonitorKit -
 V="$APP/AgentsMonitor"
 swiftc -swift-version 5 -parse-as-library -O -suppress-warnings -I "$BUILD" -L "$BUILD" -lAgentsMonitorKit -o "$BUILD/demo" \
   "$KIT/DemoKit.swift" "$HERE/scene.swift" \
-  "$V/HistoryViews.swift" "$V/MenuBarLabel.swift" "$V/Notifier.swift" "$V/PopoverView.swift" "$V/ProviderBadge.swift" \
+  "$V/AccountRows.swift" "$V/HistoryViews.swift" "$V/MenuBarLabel.swift" "$V/Notifier.swift" "$V/OpenRouterSettings.swift" "$V/OpenRouterViews.swift" "$V/PopoverView.swift" "$V/ProviderBadge.swift" \
   "$V/SettingsView.swift" "$V/SettingsWindow.swift" "$V/ToastPanel.swift" "$V/WelcomeWindow.swift" \
   "$APP/Scripts/render-screenshots/Sources/render/ProgressStandIn.swift"
 rm -rf "$BUILD/frames"
 "$BUILD/demo" "$BUILD/frames" 30 -AppleLocale en_US -AppleLanguages "(en)"      # en_US: "9:41 AM"-style times
-POSTER=${POSTER:-130}  # popover open with both cards (shows the app, never the empty desktop)
+POSTER=${POSTER:-198}  # popover open, Codex row expanded into its card (shows the app, never the empty desktop)
 "$KIT/encode.sh" "$BUILD/frames" "$GIF" "${MP4:-}" "${WEBP:-}" "${POSTER:-}"
 rm -rf "$BUILD/frames"                                                            # only after a successful encode (set -e)

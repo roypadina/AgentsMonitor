@@ -103,6 +103,7 @@ public struct UsageClient: Sendable {
 
 public enum UsageError: Error, Equatable {
     case unauthorized
+    case forbidden
     case rateLimited
     case http(Int)
     case transport(String)
@@ -115,6 +116,7 @@ extension UsageError {
     public func message(company: String) -> String {
         switch self {
         case .unauthorized: return "\(company) rejected the login"
+        case .forbidden: return "\(company) says this key can't do that"
         case .rateLimited: return "\(company) is limiting usage checks"
         case .http(let code) where code >= 500: return "\(company)'s servers are having problems"
         case .http: return "\(company) didn't accept the usage check"

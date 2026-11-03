@@ -170,7 +170,8 @@ final class Canvas {
     /// Transparent macOS 26 menu bar (text straight on the wallpaper): Finder + menus on the left, third-party item then
     /// system icons then clock on the right. Returns the app item's frame (its highlight rect), so scenes can point the cursor at it and drop a menu under it.
     @discardableResult
-    func menuBar(app: StatusItem, appActive: Bool = false, clock: String = Demo.clock, appName: String = "Finder") -> CGRect {
+    func menuBar(app: StatusItem, appActive: Bool = false, clock: String = Demo.clock, appName: String = "Finder",
+                 menus: [String] = ["File", "Edit", "View", "Go", "Window", "Help"]) -> CGRect {
         let W = Demo.size.width, h = Demo.barHeight
 
         let white = NSColor(white: 1, alpha: 0.95)
@@ -187,7 +188,7 @@ final class Canvas {
         }
 
         var x: CGFloat = 16
-        for (i, t) in ([appName, "File", "Edit", "View", "Go", "Window", "Help"]).enumerated() {
+        for (i, t) in ([appName] + menus).enumerated() {  // menus = the frontmost app's menu titles (default Finder)
             let a = attr(t, i == 0 ? .bold : .regular); put(a, x: x); x += a.size().width + 19
         }
 

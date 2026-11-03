@@ -5,7 +5,21 @@ All notable changes to Agents Monitor (formerly Claude Monitor) are documented h
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.8.0] - 2026-11-04
+
+### Added
+- A compact popover: each account is one line with up to three meter chips, and a second line only when something needs attention. Click a row (or its chevron) to expand it into the full card with bars, pacing tick, countdowns and graphs.
+- OpenRouter keys. Paste one management key in Settings > OpenRouter and every key in your workspace appears, with your credit balance; or paste single API keys. Each key shows today, this week and this month (UTC), and its cap when it has one.
+- A More page inside the popover, opened from the OpenRouter row: every key that is not hidden, the balance, and any accounts you placed there. Pin a few keys to the top of the popover; the rest stay on More.
+- Placement for every account, key and the balance: Menu Bar and Popover, Popover, More Page or Hidden. Hidden items still poll and alert.
+- Spend alerts for OpenRouter: spend over an amount (all keys combined, each key, or one key; today, this week or this month in UTC, or the last hour or 24 hours), cap left below an amount or percent, and balance below an amount. They go out through desktop notifications, ntfy, toasts and sound, like the other alerts.
+
+### Changed
+- The popover is 460 pt wide (was 440).
+- The **Menu bar** checkbox in Settings > Accounts is now a **Show in** pop-up with the four placements.
+
+### Fixed
+- A problem state (expired login, credentials to paste) takes one line in the popover, with the full hint in its tooltip and in the expanded card.
 
 ## [1.7.2] - 2026-10-30
 

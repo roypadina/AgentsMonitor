@@ -1,8 +1,7 @@
-// Agents Monitor demo: the real PopoverView, ToastContent and UsageDot (AgentsMonitor/*.swift, compiled unchanged) over fake data,
+// Agents Monitor demo: the real PopoverView, MorePage, ToastContent and UsageDot (AgentsMonitor/*.swift, compiled unchanged) over fake data,
 // filled through the app's own AppStore.shared. Status text = AppStore.menuBarSegments; the toast alert comes out of the real AlertEngine.
 // Nothing reads a credential or the Keychain and the app is never launched: the views are only drawn into bitmaps.
 import AppKit
-import CoreImage
 import SwiftUI
 import AgentsMonitorKit
 
@@ -11,17 +10,16 @@ private let hr = 3600.0
 
 // MARK: fake data (fixtures follow Scripts/render-screenshots/Sources/render/main.swift)
 
-/// The app's view files call `Date()` themselves (HistoryViews.swift:75 graph axis, PopoverView.swift:258 graph span, :333 "resets in"): left alone,
-/// every render would differ by a few pixels at anti-aliased edges, because the chart's axis moves with the wall clock. This initializer shadows
-/// Foundation's for this module (a same-signature declaration in the current module wins) and returns `pinned` while a view is being drawn.
+/// The app's view files call `Date()` themselves ("resets in", the OpenRouter cap line): left alone, every render could differ by a minute
+/// digit. This initializer shadows Foundation's for this module (a same-signature declaration in the current module wins) and returns `pinned`
+/// while a view is being drawn.
 private var pinned: Double?
 extension Date {
     init() { self.init(timeIntervalSinceReferenceDate: pinned ?? CFAbsoluteTimeGetCurrent()) }
 }
 
-/// Fixtures hang off one anchor: while a view is drawn its `Date()` is exactly `base`, so "resets in", the pacing tick's neighbours and the graph
-/// axis come out the same on every run. (The Kit's own default-argument `Date()`s stay real, so every countdown carries +30 s: its minute digit
-/// cannot flip.)
+/// Fixtures hang off one anchor: while a view is drawn its `Date()` is exactly `base`, so "resets in" comes out the same on every run. (The
+/// Kit's own default-argument `Date()`s stay real, so every countdown carries +30 s: its minute digit cannot flip.)
 private var base = Date()
 
 private func clockTime(_ h: Int, _ m: Int) -> Date {
@@ -36,6 +34,8 @@ private func limit(_ kind: String, _ pct: Int, resetsIn: TimeInterval, model: St
 
 private let work = Account(id: UUID(uuidString: "00000000-0000-0000-0000-0000000000A1")!, name: "Work",
                            kind: .local(configDirPath: "/Users/example/.claude"), provider: .claude)
+private let personal = Account(id: UUID(uuidString: "00000000-0000-0000-0000-0000000000A3")!, name: "Personal",
+                               kind: .local(configDirPath: "/Users/example/.claude-personal"), provider: .claude)
 private let codex = Account(id: UUID(uuidString: "00000000-0000-0000-0000-0000000000A2")!, name: "Codex",
                             kind: .local(configDirPath: "/Users/example/.codex"), provider: .codex)
 
@@ -43,48 +43,48 @@ private func workSnap() -> UsageSnapshot {
     UsageSnapshot(limits: [limit("session", 64, resetsIn: 156 * 60), limit("weekly_all", 41, resetsIn: 96 * hr),
                            limit("weekly_scoped", 22, resetsIn: 96 * hr, model: "Fable")], spend: nil)
 }
+private func personalSnap() -> UsageSnapshot {
+    UsageSnapshot(limits: [limit("session", 12, resetsIn: 246 * 60), limit("weekly_all", 93, resetsIn: 31 * hr),
+                           limit("weekly_scoped", 84, resetsIn: 31 * hr, model: "Fable")], spend: nil)
+}
 private func codexSnap(_ session: Int) -> UsageSnapshot {
     UsageSnapshot(limits: [limit("session", session, resetsIn: 192 * 60, window: 5 * hr, warnAt: 75),
                            limit("weekly_all", 38, resetsIn: 120 * hr, window: 7 * 86400, warnAt: 75)], spend: nil)
 }
 
-/// Two days of polls every 10 min: the session limit as a saw-tooth (older windows peak at different heights, the current one reaches the
-/// snapshot's number), the weekly limit as one slowing ramp. A made-up shape, not anyone's usage.
-private func history(for account: Account, snap: UsageSnapshot) -> [UsageSample] {
-    func pseudo(_ k: Int) -> Double { let s = sin(Double(k) * 12.9898 + 78.233) * 43758.5453; return s - floor(s) }
-    return (0..<288).reversed().map { k in
-        let age = 300.0 + 600.0 * Double(k)
-        let limits = snap.limits.map { l -> LimitInfo in
-            let win = l.windowLength
-            let elapsed = win - (l.resetsAt!.timeIntervalSince(base) - 30)
-            let x = elapsed - age
-            let pct: Double
-            if x >= 0 {
-                let u = x / elapsed
-                pct = Double(l.percent) * (1 - pow(1 - u, 3))
-            } else {
-                let cycle = Int((x / win).rounded(.down))
-                pct = (45 + 45 * pseudo(cycle)) * pow((x - Double(cycle) * win) / win, 0.85)
-            }
-            return LimitInfo(kind: l.kind, group: nil, percent: Int(pct), severity: .normal, resetsAt: nil,
-                             modelDisplayName: l.modelDisplayName, isActive: true, windowSeconds: win)
-        }
-        return UsageSample(account: account.id, snapshot: UsageSnapshot(limits: limits, spend: nil), at: base.addingTimeInterval(-age))
-    }
+/// OpenRouter keys: two pinned to the popover, the rest on the More page. Caps carry no reset period, because the "resets daily in …" countdown
+/// runs to the next UTC midnight from the wall clock and would change between renders.
+private func key(_ name: String, _ tail: String, day: Double, week: Double, month: Double, limit: Double? = nil, left: Double? = nil) -> OpenRouterKeyUsage {
+    OpenRouterKeyUsage(id: "hash-\(name)", name: name, label: "sk-or-v1-\(tail)...\(tail)", limit: limit, limitRemaining: left,
+                       usage: month * 3, usageDaily: day, usageWeekly: week, usageMonthly: month)
 }
+private let keys = [
+    key("prod-agent", "c3f", day: 3.2, week: 18.4, month: 61.1, limit: 100, left: 38.9),
+    key("research", "9a1", day: 0.65, week: 2.1, month: 9.8),
+    key("ci-runner", "77b", day: 0.41, week: 3.9, month: 14.02),
+    key("eval-batch", "e5a", day: 12.5, week: 88.2, month: 240.75, limit: 300, left: 59.25),
+    key("nightly-etl", "b18", day: 2.75, week: 19.6, month: 70.4),
+    key("support-bot", "a70", day: 0.88, week: 5.12, month: 21.9),
+]
 
 @MainActor private func setCodex(_ session: Int) {
     AppStore.shared.states[codex.id] = .ok(codexSnap(session))
 }
 
-/// The store as the popover finds it at 9:41 (accounts, usage, two days of history for the graphs), anchored to the current wall clock.
+/// The store as the popover finds it at 9:41 (three accounts collapsed to one line each, OpenRouter set up), anchored to the wall clock.
 @MainActor private func freshFixtures() {
     base = Date()
     let store = AppStore.shared
-    store.accounts = [work, codex]
+    store.accounts = [work, personal, codex]
+    store.expandedAccounts = []                                            // three accounts start as compact rows (AppStore.bootstrap)
     store.states[work.id] = .ok(workSnap())
+    store.states[personal.id] = .ok(personalSnap())
     setCodex(74)
-    store.history[codex.id] = history(for: codex, snap: codexSnap(74))
+    store.openRouterKeys = keys.enumerated().map { i, k in
+        OpenRouterKeyConfig(id: k.id, source: .managed, placement: i < 2 ? .popover : .more, lastName: k.name, lastLabel: k.label)
+    }
+    store.settings.openRouter.managementKeyConfigured = true
+    store.openRouterState = .ok(OpenRouterSnapshot(keys: keys, balance: OpenRouterBalance(totalCredits: 100, totalUsage: 57.83)))
     store.lastRefresh = clockTime(9, 41)                                   // footer: "9:41 AM" (PopoverView.swift:68 ViewThatFits drops "Updated" at this width)
 }
 
@@ -124,11 +124,11 @@ private func context(_ w: Int, _ h: Int) -> CGContext {
     return c
 }
 
-// MARK: the popover and its flipping card
+// MARK: the popover's rows
 
-/// Rows (in image px, y-down) where the account cards sit: at x = 22 pt (12 pt popover padding + the card's 10 pt corner radius) the card fill
+/// Rows (in image px, y-down) of the popover's rounded rows and cards: at x = 22 pt (12 pt popover padding + 10 pt corner radius) a row's fill
 /// is the only thing, and its rounded corners no longer cut in.
-private func cardRows(_ img: CGImage) -> [Range<Int>] {
+private func rowRuns(_ img: CGImage) -> [Range<Int>] {
     let c = context(img.width, img.height)
     c.draw(img, in: CGRect(x: 0, y: 0, width: img.width, height: img.height))
     let p = c.data!.assumingMemoryBound(to: UInt8.self), bpr = c.bytesPerRow, x = Int(22 * Demo.scale)
@@ -136,47 +136,25 @@ private func cardRows(_ img: CGImage) -> [Range<Int>] {
     for row in 0..<img.height {   // CG memory is top row first
         let opaque = p[row * bpr + x * 4 + 3] > 0
         if opaque, start == nil { start = row }
-        if !opaque, let s = start { if row - s > 50 { runs.append(s..<row) }; start = nil }
+        if !opaque, let s = start { if row - s > 30 { runs.append(s..<row) }; start = nil }
     }
     return runs
 }
 
-/// What AccountCard's flip does at one instant: its front turns away (0-90 degrees) and its back turns in (90-180), the way the app's
-/// FlipFace draws it (rotation3DEffect about the vertical axis, perspective 0.3). Approximated here with a perspective warp of the two
-/// real faces; at rest (0 and 180) the images are the app's own.
-@MainActor private struct CardFlip {
-    let front: CGImage, back: CGImage, rect: CGRect  // rect: the card in image px, y-down
-    private let ci = CIContext()
-
-    /// `angle` in degrees, 0 = front up, 180 = back up.
-    func image(angle: Double) -> CGImage {
-        let w = front.width, h = front.height
-        let c = context(w, h)
-        // the page without the card (the panel's glass shows through where it was)
-        c.draw(front, in: CGRect(x: 0, y: 0, width: w, height: h))
-        let hole = CGRect(x: rect.minX, y: CGFloat(h) - rect.maxY, width: rect.width, height: rect.height).insetBy(dx: -2, dy: -2)
-        c.saveGState()
-        c.addPath(CGPath(roundedRect: hole, cornerWidth: 10 * Demo.scale + 2, cornerHeight: 10 * Demo.scale + 2, transform: nil))
-        c.clip(); c.clear(hole); c.restoreGState()
-
-        let face = angle < 90 ? front : back
-        let theta = (angle < 90 ? angle : angle - 180) * .pi / 180
-        if abs(cos(theta)) > 0.03, let cropped = face.cropping(to: rect) {
-            let cw = CGFloat(cropped.width), ch = CGFloat(cropped.height), d = cw / 0.3  // eye distance for perspective 0.3
-            func corner(_ sx: CGFloat, _ sy: CGFloat) -> CGPoint {
-                let x = sx * cw / 2, z = x * CGFloat(sin(theta)), s = d / (d - z)
-                return CGPoint(x: cw / 2 + x * CGFloat(cos(theta)) * s, y: ch / 2 + sy * ch / 2 * s)
-            }
-            let f = CIFilter(name: "CIPerspectiveTransform")!
-            f.setValue(CIImage(cgImage: cropped), forKey: kCIInputImageKey)
-            f.setValue(CIVector(cgPoint: corner(-1, 1)), forKey: "inputTopLeft"); f.setValue(CIVector(cgPoint: corner(1, 1)), forKey: "inputTopRight")
-            f.setValue(CIVector(cgPoint: corner(-1, -1)), forKey: "inputBottomLeft"); f.setValue(CIVector(cgPoint: corner(1, -1)), forKey: "inputBottomRight")
-            if let out = f.outputImage, let warped = ci.createCGImage(out, from: out.extent) {
-                c.draw(warped, in: CGRect(x: rect.minX + out.extent.minX, y: CGFloat(h) - rect.maxY + out.extent.minY, width: out.extent.width, height: out.extent.height))
-            }
-        }
-        return c.makeImage()!
-    }
+/// The More page as PopoverView shows it: MorePage, then the popover's Divider and footer, cut from the main page's capture (at x = 4 pt only
+/// the full-width Divider is drawn; the footer's 10 pt padding keeps its text and buttons clear of it).
+private func withFooter(_ page: CGImage, from main: CGImage) -> CGImage {
+    let c = context(main.width, main.height)
+    c.draw(main, in: CGRect(x: 0, y: 0, width: main.width, height: main.height))
+    let p = c.data!.assumingMemoryBound(to: UInt8.self), bpr = c.bytesPerRow, x = Int(4 * Demo.scale)
+    var top = main.height - 1
+    while top > 0, p[top * bpr + x * 4 + 3] == 0 { top -= 1 }       // up from the bottom to the Divider
+    while top > 0, p[(top - 1) * bpr + x * 4 + 3] > 0 { top -= 1 }   // its first row
+    let footer = main.cropping(to: CGRect(x: 0, y: top, width: main.width, height: main.height - top))!
+    let out = context(page.width, page.height + footer.height)
+    out.draw(footer, in: CGRect(x: 0, y: 0, width: footer.width, height: footer.height))
+    out.draw(page, in: CGRect(x: 0, y: footer.height, width: page.width, height: page.height))
+    return out.makeImage()!
 }
 
 // MARK: status item (MenuBarLabel.swift: usage dots, then the segments' text)
@@ -222,18 +200,15 @@ private func cardRows(_ img: CGImage) -> [Range<Int>] {
     setCodex(74)
     let toast = capture(ToastContent(alert: alert), width: 320)
 
-    freshFixtures(); RenderHooks.flipCards = false
-    let front = capture(PopoverView(), width: 440)
-    freshFixtures(); RenderHooks.flipCards = true
-    let back = capture(PopoverView(), width: 440)
-    RenderHooks.flipCards = false
-    precondition(front.width == back.width && front.height == back.height, "the card back keeps the card's size")
-    let cards = cardRows(front)
-    precondition(cards.count == 2, "expected two account cards, found \(cards.count)")
-    let codexCard = CGRect(x: 12 * Demo.scale, y: Double(cards[1].lowerBound), width: Double(front.width) - 24 * Demo.scale, height: Double(cards[1].count))
-    let flip = CardFlip(front: front, back: back, rect: codexCard)
-    let flipped = flip.image(angle: 180)
-    let popSize = CGSize(width: CGFloat(front.width) / Demo.scale, height: CGFloat(front.height) / Demo.scale)
+    // the three popover pages: compact rows, the Codex row expanded into its card (AccountList), the More page (OpenRouterHeaderRow's action)
+    freshFixtures()
+    let compact = capture(PopoverView(), width: 460)
+    store.expandedAccounts = [codex.id]
+    let expanded = capture(PopoverView(), width: 460)
+    let more = withFooter(capture(MorePage(filter: .constant(""), onBack: {}, onRepaste: { _ in }), width: 460), from: compact)
+    let compactRows = rowRuns(compact), expandedRows = rowRuns(expanded)
+    precondition(compactRows.count == 6 && expandedRows.count == 6, "expected Work, Personal, Codex, OpenRouter and two keys, found \(compactRows.count) / \(expandedRows.count)")
+    precondition(expandedRows[2].count > compactRows[2].count * 2, "the Codex row did not expand into its card")
 
     func bar(_ look: StatusLook, clock: String, pressed: Bool = false) -> (Canvas, CGRect) {
         let c = Canvas()
@@ -243,59 +218,68 @@ private func cardRows(_ img: CGImage) -> [Range<Int>] {
     }
     let clock941 = Demo.clock, clock946 = "Thu Oct 30 9:46 AM"
     let item = bar(look74, clock: clock941).1
-    let item80 = bar(look80, clock: clock946).1
     let itemCenter = CGPoint(x: item.midX, y: Demo.barHeight / 2)
-    let popOrigin = CGPoint(x: min(item.midX - popSize.width / 2, W - popSize.width - 8), y: Demo.barHeight + 6)
-    let chartButton = CGPoint(x: popOrigin.x + popSize.width - 12 - 12 - 7,                  // card padding 12 + popover padding 12 + half the 14 pt icon
-                              y: popOrigin.y + codexCard.minY / Demo.scale + 12 + 9)          // PopoverView header row: 12 pt card padding, ~18 pt row
+    let popOrigin = CGPoint(x: min(item.midX - 230, W - 460 - 8), y: Demo.barHeight + 6)
+    func chevron(_ run: Range<Int>) -> CGPoint {                           // the row's trailing chevron: 12 pt popover padding + ~13 pt to its centre
+        CGPoint(x: popOrigin.x + 460 - 25, y: popOrigin.y + CGFloat(run.lowerBound + run.upperBound) / 2 / Demo.scale)
+    }
+    let codexRow = chevron(compactRows[2]), openRouterRow = chevron(expandedRows[3])
     let panelRadius: CGFloat = 16
     let toastOrigin = CGPoint(x: W - 12 - 320, y: Demo.barHeight + 12)                      // ToastPanel.frame(forIndex:): 12 pt margin, top right
 
     // 1. the status item: one dot per account, then the numbers (MenuBarLabel)
-    let s1 = Scene(name: "menu bar", duration: 2.4, caption: "Every account's usage sits in the menu bar") { _ in
+    let s1 = Scene(name: "menu bar", duration: 2.0, caption: "Every account's usage sits in the menu bar") { _ in
         bar(look74, clock: clock941).0.image
     }
 
-    // 2. a click opens the popover (MenuBarExtra .window): limit bars, pacing ticks, reset countdowns
-    let path2 = CursorPath(start: CGPoint(x: W * 0.74, y: H * 0.44), moves: [.init(t0: 0.10, t1: 0.70, to: itemCenter)], clicks: [0.85])
-    let s2 = Scene(name: "popover", duration: 3.2, caption: "Click for limit bars and reset times") { t in
-        let open = t >= 0.85
+    // 2. a click opens the popover (MenuBarExtra .window): one line per account, the OpenRouter row and the keys pinned under it
+    let path2 = CursorPath(start: CGPoint(x: W * 0.74, y: H * 0.44), moves: [.init(t0: 0.10, t1: 0.65, to: itemCenter)], clicks: [0.80])
+    let s2 = Scene(name: "popover", duration: 2.8, caption: "One line per account and OpenRouter key") { t in
+        let open = t >= 0.80
         let (c, _) = bar(look74, clock: clock941, pressed: open)
-        if open { c.panel(front, at: popOrigin, radius: panelRadius, alpha: CGFloat(ramp(t, 0.85, 0.97))) }
+        if open { c.panel(compact, at: popOrigin, radius: panelRadius, alpha: CGFloat(ramp(t, 0.80, 0.92))) }
         let click = path2.click(t)
-        c.cursor(at: path2.position(t), alpha: CGFloat(ramp(t, 0.0, 0.25) * (1 - ramp(t, 1.25, 1.50))), press: click.press, pulse: click.pulse)
+        c.cursor(at: path2.position(t), alpha: CGFloat(ramp(t, 0.0, 0.25)), press: click.press, pulse: click.pulse)
         return c.image
     }
 
-    // 3. the chart button turns the Codex card over (withAnimation(.easeInOut(duration: 0.45)), PopoverView.swift:166)
-    let path3 = CursorPath(start: itemCenter, moves: [.init(t0: 0.10, t1: 0.95, to: chartButton)], clicks: [1.15])
-    let s3 = Scene(name: "graph", duration: 3.6, caption: "Flip a card for its usage graph") { t in
+    // 3. a click on the Codex row expands it into the full card in place (AccountList toggles expandedAccounts, no animation)
+    let path3 = CursorPath(start: itemCenter, moves: [.init(t0: 0.10, t1: 0.75, to: codexRow)], clicks: [0.90])
+    let s3 = Scene(name: "expand", duration: 2.6, caption: "Click a row for bars and reset times") { t in
         let (c, _) = bar(look74, clock: clock941, pressed: true)
-        let angle = 180 * ease((t - 1.15) / 0.45)
-        c.panel(angle >= 180 ? flipped : flip.image(angle: angle), at: popOrigin, radius: panelRadius)
+        c.panel(t >= 0.90 ? expanded : compact, at: popOrigin, radius: panelRadius)
         let click = path3.click(t)
-        c.cursor(at: path3.position(t), alpha: CGFloat(ramp(t, 0.0, 0.25)), press: click.press, pulse: click.pulse)
+        c.cursor(at: path3.position(t), press: click.press, pulse: click.pulse)
         return c.image
     }
 
-    // 4. a click elsewhere closes the popover at once; the next poll sees Codex at 80 %: dot + number change, the toast slides in
-    let path4 = CursorPath(start: chartButton, moves: [.init(t0: 0.10, t1: 0.55, to: CGPoint(x: W * 0.30, y: H * 0.62))], clicks: [0.65])
-    let pollAt = 1.15, toastAt = 1.30
-    let s4 = Scene(name: "toast", duration: 3.6, caption: "Warns near the limit: toast, notification, phone push") { t in
+    // 4. the OpenRouter row opens the More page inside the same popover: balance, every key, caps
+    let path4 = CursorPath(start: codexRow, moves: [.init(t0: 0.10, t1: 0.65, to: openRouterRow)], clicks: [0.80])
+    let s4 = Scene(name: "more", duration: 2.6, caption: "Every OpenRouter key's spend on the More page") { t in
+        let (c, _) = bar(look74, clock: clock941, pressed: true)
+        c.panel(t >= 0.80 ? more : expanded, at: popOrigin, radius: panelRadius)
+        let click = path4.click(t)
+        c.cursor(at: path4.position(t), alpha: CGFloat(1 - ramp(t, 1.30, 1.55)), press: click.press, pulse: click.pulse)  // gone once the page has opened
+        return c.image
+    }
+
+    // 5. a click elsewhere closes the popover at once; the next poll sees Codex at 80 %: dot + number change, the toast slides in
+    let path5 = CursorPath(start: openRouterRow, moves: [.init(t0: 0.10, t1: 0.45, to: CGPoint(x: W * 0.30, y: H * 0.62))], clicks: [0.55])
+    let pollAt = 0.95, toastAt = 1.05
+    let s5 = Scene(name: "toast", duration: 2.8, caption: "Warns near the limit: toast, notification, phone push") { t in
         let polled = t >= pollAt
-        let closing = 1 - ramp(t, 0.65, 0.77)
+        let closing = 1 - ramp(t, 0.55, 0.67)
         let (c, _) = polled ? bar(look80, clock: clock946) : bar(look74, clock: clock941, pressed: closing > 0)
-        if closing > 0 { c.panel(flipped, at: popOrigin, radius: panelRadius, alpha: CGFloat(closing)) }
+        if closing > 0 { c.panel(more, at: popOrigin, radius: panelRadius, alpha: CGFloat(closing)) }
         if t >= toastAt {  // ToastPanel.show: 0.25 s slide in from the right (width + margin) while fading in
             let k = ease((t - toastAt) / 0.25)
             c.panel(toast, at: CGPoint(x: toastOrigin.x + (320 + 12) * (1 - k), y: toastOrigin.y), radius: 10, alpha: CGFloat(k))
         }
-        let click = path4.click(t)
-        c.cursor(at: path4.position(t), alpha: CGFloat((1 - ramp(t, 0.80, 1.05))), press: click.press, pulse: click.pulse)
+        let click = path5.click(t)
+        c.cursor(at: path5.position(t), alpha: CGFloat(ramp(t, 0.0, 0.25) * (1 - ramp(t, 0.70, 0.95))), press: click.press, pulse: click.pulse)
         return c.image
     }
-    _ = item80
-    return [s1, s2, s3, s4]
+    return [s1, s2, s3, s4, s5]
 }
 
 @main struct AgentsMonitorDemo {
