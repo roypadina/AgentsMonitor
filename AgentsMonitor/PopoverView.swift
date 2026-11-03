@@ -323,22 +323,15 @@ private struct LimitRow: View {
             .frame(height: 12)
             if let resetsAt = limit.resetsAt {
                 HStack(spacing: 4) {
-                    Text("resets in \(Self.countdown(to: resetsAt))").foregroundStyle(.secondary)
+                    Text("resets in \(shortCountdown(to: resetsAt))").foregroundStyle(.secondary)
                     if let full {
                         Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(.orange)
-                        Text("full in ~\(Self.countdown(to: full)) at this pace").foregroundStyle(.secondary)
+                        Text("full in ~\(shortCountdown(to: full)) at this pace").foregroundStyle(.secondary)
                     }
                 }
                 .font(.caption2)
             }
         }
-    }
-
-    private static func countdown(to date: Date, now: Date = Date()) -> String {
-        let seconds = max(0, Int(date.timeIntervalSince(now)))
-        let h = seconds / 3600
-        let m = (seconds % 3600) / 60
-        return h > 0 ? "\(h)h \(m)m" : "\(m)m"
     }
 }
 

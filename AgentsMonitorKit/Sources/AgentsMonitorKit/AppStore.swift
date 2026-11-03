@@ -405,7 +405,12 @@ public final class AppStore {
     /// first letter says nothing. Falls back to 1-based numbering if the tags collide.
     public static func menuBarTags(for accounts: [Account]) -> [UUID: String] {
         func tag(_ account: Account) -> String {
-            let letter = account.provider == .codex ? "x" : "c"
+            let letter: String
+            switch account.provider {
+            case .claude: letter = "c"
+            case .codex: letter = "x"
+            case .openrouter: letter = "o"
+            }
             return letter + account.name.filter(\.isNumber)
         }
         var tags = accounts.reduce(into: [UUID: String]()) { $0[$1.id] = tag($1) }
@@ -417,7 +422,7 @@ public final class AppStore {
 
     /// Accounts the user chose to show in the menu bar (all of them by default).
     public var menuBarAccounts: [Account] {
-        accounts.filter(\.showInMenuBar)
+        accounts.filter { $0.placement.showsInMenuBar }
     }
 
     /// One entry per shown account. `dotPercent` is the session/weekly max — deliberately
@@ -494,6 +499,8 @@ public final class AppStore {
                 }
                 return try await codexClient.fetch(accessToken: token,
                                                    accountId: CodexAuthFile.accountId(configDir: configDirPath))
+            case .openrouter:
+                throw CredentialError.notFound   // OpenRouter keys are polled by the OpenRouter store, not as accounts
             }
         }
         var usedToken: String?
@@ -549,7 +556,7 @@ public final class AppStore {
     /// Config-dir candidates for a provider: `~/.claude`, `~/.claude-work`, `~/.claude-personal`,
     /// `~/.codex`, ... Directories only — files such as `.claude.json` share the prefix.
     static func profileDirs(for provider: Provider, home: String = NSHomeDirectory()) -> [String] {
-        let prefix = provider.configDirPrefix
+        guard let prefix = provider.configDirPrefix else { return [] }
         var dirs = ["\(home)/\(prefix)"]
         if let entries = try? FileManager.default.contentsOfDirectory(atPath: home) {
             dirs += entries

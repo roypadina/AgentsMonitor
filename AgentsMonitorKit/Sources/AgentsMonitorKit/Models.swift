@@ -21,12 +21,13 @@ public enum Severity: String, Codable, Comparable, Sendable {
 /// Which agent CLI an account belongs to. Decides where the credentials live and which usage
 /// endpoint answers for it; everything downstream works off the same `UsageSnapshot`.
 public enum Provider: String, Codable, CaseIterable, Hashable, Sendable {
-    case claude, codex
+    case claude, codex, openrouter
 
     public var displayName: String {
         switch self {
         case .claude: return "Claude"
         case .codex: return "Codex"
+        case .openrouter: return "OpenRouter"
         }
     }
 
@@ -35,14 +36,16 @@ public enum Provider: String, Codable, CaseIterable, Hashable, Sendable {
         switch self {
         case .claude: return "Anthropic"
         case .codex: return "OpenAI"
+        case .openrouter: return "OpenRouter"
         }
     }
 
     /// Directory prefix its CLI keeps per-profile config in: `~/.claude*`, `~/.codex*`.
-    var configDirPrefix: String {
+    var configDirPrefix: String? {
         switch self {
         case .claude: return ".claude"
         case .codex: return ".codex"
+        case .openrouter: return nil
         }
     }
 
@@ -52,6 +55,7 @@ public enum Provider: String, Codable, CaseIterable, Hashable, Sendable {
         switch self {
         case .claude: return "asterisk"
         case .codex: return "curlybraces"
+        case .openrouter: return "arrow.triangle.branch"
         }
     }
 
@@ -63,6 +67,7 @@ public enum Provider: String, Codable, CaseIterable, Hashable, Sendable {
         switch self {
         case .claude: return (0.851, 0.467, 0.341)   // #D97757
         case .codex: return (0.063, 0.639, 0.498)    // #10A37F
+        case .openrouter: return (0.388, 0.400, 0.945) // #6366F1
         }
     }
 
@@ -73,8 +78,38 @@ public enum Provider: String, Codable, CaseIterable, Hashable, Sendable {
         switch self {
         case .claude: return "open a Claude Code session for this profile (only /login if that doesn't fix it)"
         case .codex: return "run codex in this profile (only codex login if that doesn't fix it)"
+        case .openrouter: return "paste a new key in Settings › OpenRouter"
         }
     }
+
+    /// One-line form for the compact row; the full `reauthHint` stays in the tooltip and the card.
+    public var reauthHintShort: String {
+        switch self {
+        case .claude: return "open Claude Code in this profile"
+        case .codex: return "run codex in this profile"
+        case .openrouter: return reauthHint
+        }
+    }
+}
+
+// MARK: - Placement
+
+/// Where an account, key or balance shows. A ladder: each level includes the ones below it.
+public enum Placement: String, Codable, CaseIterable, Sendable {
+    case menuBar, popover, more, hidden
+
+    public var label: String {
+        switch self {
+        case .menuBar: return "Menu Bar and Popover"
+        case .popover: return "Popover"
+        case .more: return "More Page"
+        case .hidden: return "Hidden"
+        }
+    }
+
+    public var showsInMenuBar: Bool { self == .menuBar }
+    public var showsInPopover: Bool { self == .menuBar || self == .popover }
+    public var showsOnMore: Bool { self != .hidden }
 }
 
 // MARK: - Account
@@ -91,13 +126,18 @@ public struct Account: Codable, Identifiable, Hashable, Sendable {
     public var desktopAlerts: Bool       // default true
     public var ntfyEnabled: Bool         // default false
     public var ntfyTopicOverride: String?
-    public var showInMenuBar: Bool = true
+    public var placement: Placement = .menuBar
+    public var showInMenuBar: Bool {
+        get { placement == .menuBar }
+        set { placement = newValue ? .menuBar : .popover }
+    }
     public var provider: Provider = .claude
     // NEVER holds a token. UserDefaults is a plaintext plist.
 
     public init(id: UUID = UUID(), name: String, kind: AccountKind, provider: Provider = .claude,
                 desktopAlerts: Bool = true, ntfyEnabled: Bool = false,
-                ntfyTopicOverride: String? = nil, showInMenuBar: Bool = true) {
+                ntfyTopicOverride: String? = nil, showInMenuBar: Bool = true,
+                placement: Placement? = nil) {
         self.id = id
         self.name = name
         self.kind = kind
@@ -105,7 +145,24 @@ public struct Account: Codable, Identifiable, Hashable, Sendable {
         self.desktopAlerts = desktopAlerts
         self.ntfyEnabled = ntfyEnabled
         self.ntfyTopicOverride = ntfyTopicOverride
-        self.showInMenuBar = showInMenuBar
+        self.placement = placement ?? (showInMenuBar ? .menuBar : .popover)
+    }
+
+    // `showInMenuBar` stays a key so the legacy blob decodes; it is never written back.
+    private enum CodingKeys: String, CodingKey {
+        case id, name, kind, desktopAlerts, ntfyEnabled, ntfyTopicOverride, showInMenuBar, placement, provider
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(name, forKey: .name)
+        try c.encode(kind, forKey: .kind)
+        try c.encode(desktopAlerts, forKey: .desktopAlerts)
+        try c.encode(ntfyEnabled, forKey: .ntfyEnabled)
+        try c.encodeIfPresent(ntfyTopicOverride, forKey: .ntfyTopicOverride)
+        try c.encode(placement, forKey: .placement)
+        try c.encode(provider, forKey: .provider)
     }
 
     /// Lenient like `Settings`: an accounts blob written by an older version lacks newly added
@@ -119,7 +176,8 @@ public struct Account: Codable, Identifiable, Hashable, Sendable {
         desktopAlerts = try c.decodeIfPresent(Bool.self, forKey: .desktopAlerts) ?? true
         ntfyEnabled = try c.decodeIfPresent(Bool.self, forKey: .ntfyEnabled) ?? false
         ntfyTopicOverride = try c.decodeIfPresent(String.self, forKey: .ntfyTopicOverride)
-        showInMenuBar = try c.decodeIfPresent(Bool.self, forKey: .showInMenuBar) ?? true
+        let legacyShow = try c.decodeIfPresent(Bool.self, forKey: .showInMenuBar) ?? true
+        placement = try c.decodeIfPresent(Placement.self, forKey: .placement) ?? (legacyShow ? .menuBar : .popover)
         // Blobs written before Codex support existed have no provider — they are all Claude.
         provider = try c.decodeIfPresent(Provider.self, forKey: .provider) ?? .claude
     }
@@ -414,4 +472,41 @@ private func parseSpend(_ dict: [String: Any]) -> SpendInfo? {
                       percent: Int((numeric(dict["percent"]) ?? 0).rounded()),
                       severity: severity,
                       enabled: dict["enabled"] as? Bool ?? false)
+}
+
+// MARK: - Compact popover helpers
+
+public extension LimitInfo {
+    /// Chip tag for the compact row: "5h" / "7d" / model initial / "CR" / first letters (≤ 2).
+    var shortTag: String {
+        switch kind {
+        case "session", "five_hour": return "5h"
+        case "weekly_all", "seven_day": return "7d"
+        case "weekly_scoped": return modelDisplayName.flatMap { $0.first.map(String.init) } ?? "7d"
+        default:
+            return String(kind.split(separator: "_").compactMap(\.first).prefix(2)).uppercased()
+        }
+    }
+}
+
+public extension UsageSnapshot {
+    /// Up to three limits for the compact row: session, weekly_all, the highest per-model week,
+    /// then code_review (any other kind after it, in order).
+    var compactLimits: [LimitInfo] {
+        func first(_ kinds: Set<String>) -> LimitInfo? { limits.first { kinds.contains($0.kind) } }
+        var picked = [first(["session", "five_hour"]), first(["weekly_all", "seven_day"]),
+                      limits.filter { $0.kind == "weekly_scoped" }.max { $0.percent < $1.percent }]
+            .compactMap { $0 }
+        let others = limits.filter { l in !["session", "five_hour", "weekly_all", "seven_day", "weekly_scoped", "spend"].contains(l.kind) }
+        picked += others.sorted { ($0.kind == "code_review" ? 0 : 1) < ($1.kind == "code_review" ? 0 : 1) }
+        return Array(picked.prefix(3))
+    }
+}
+
+/// "1h 46m" / "12m".
+public func shortCountdown(to date: Date, now: Date = Date()) -> String {
+    let seconds = max(0, Int(date.timeIntervalSince(now)))
+    let h = seconds / 3600
+    let m = (seconds % 3600) / 60
+    return h > 0 ? "\(h)h \(m)m" : "\(m)m"
 }
