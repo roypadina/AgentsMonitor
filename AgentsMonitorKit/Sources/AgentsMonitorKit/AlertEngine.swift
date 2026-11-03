@@ -68,7 +68,7 @@ public struct AlertEngine {
             self.lastIncreaseAt = lastIncreaseAt
         }
     }
-    private var memory: [String: MemoryEntry] = [:]
+    var memory: [String: MemoryEntry] = [:]
 
     private static let log = Logger(subsystem: "com.roy.agentsmonitor", category: "alerts")
 
