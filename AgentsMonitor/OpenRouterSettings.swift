@@ -134,13 +134,9 @@ struct OpenRouterTab: View {
                 Text("No keys yet. Connect a management key above, or add a key.")
                     .foregroundStyle(.secondary)
             } else {
-                List {
-                    ForEach(store.openRouterKeys) { keyRow($0) }
-                        .onMove { store.moveKeys(fromOffsets: $0, toOffset: $1) }
-                }
-                .listStyle(.bordered)
-                // A List in a Form has no height of its own; long workspaces scroll inside it.
-                .frame(height: min(CGFloat(store.openRouterKeys.count) * 28 + 8, 148))
+                // Rows sit straight in the Form so the pane scrolls; a nested List never got scroll events.
+                ForEach(store.openRouterKeys) { keyRow($0) }
+                    .onMove { store.moveKeys(fromOffsets: $0, toOffset: $1) }
             }
             HStack {
                 Button("Add Key…") { sheet = .addKey }
@@ -159,7 +155,7 @@ struct OpenRouterTab: View {
         } header: {
             Text("Keys")
         } footer: {
-            Text("Drag to reorder; this is the popover order. A key in the popover is also on the More page. Balance in Popover or More Page shows in the OpenRouter summary on both pages; Menu Bar and Popover adds the menu bar. The balance needs a management key.")
+            Text("Drag or right-click a key to reorder; this is the popover order. A key in the popover is also on the More page. Balance in Popover or More Page shows in the OpenRouter summary on both pages; Menu Bar and Popover adds the menu bar. The balance needs a management key.")
                 .formFooter()
         }
     }
@@ -205,6 +201,18 @@ struct OpenRouterTab: View {
             }
         }
         .controlSize(.small)
+        .contextMenu { moveMenu(config) }
+    }
+
+    /// Keyboard and VoiceOver path for reordering, and the fallback when drag is not available.
+    @ViewBuilder
+    private func moveMenu(_ config: OpenRouterKeyConfig) -> some View {
+        if let i = store.openRouterKeys.firstIndex(where: { $0.id == config.id }) {
+            let last = store.openRouterKeys.count - 1
+            Button("Move to Top") { store.moveKeys(fromOffsets: IndexSet(integer: i), toOffset: 0) }.disabled(i == 0)
+            Button("Move Up") { store.moveKeys(fromOffsets: IndexSet(integer: i), toOffset: i - 1) }.disabled(i == 0)
+            Button("Move Down") { store.moveKeys(fromOffsets: IndexSet(integer: i), toOffset: i + 2) }.disabled(i == last)
+        }
     }
 
     /// Empty clears the nickname (back to OpenRouter's name or the masked label).
