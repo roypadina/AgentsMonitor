@@ -129,16 +129,18 @@ Codex login, only Agents Monitor's own state):
 
 ```bash
 defaults delete com.roy.agentsmonitor
-rm -rf ~/Library/Application\ Support/AgentsMonitor    # usage history behind the graphs
+rm -rf ~/Library/Application\ Support/AgentsMonitor    # usage history behind the graphs, OpenRouter spend history
 ```
 
-If you added any **remote accounts**, Agents Monitor stored their credentials in its own
-keychain items, one per account, named `AgentsMonitor-account-<uuid>`. `defaults delete` above
-does not remove these — list and delete them explicitly if you want them gone:
+If you added any **remote accounts** or **OpenRouter keys**, Agents Monitor stored them in its own
+keychain items: `AgentsMonitor-account-<uuid>` per remote account,
+`AgentsMonitor-openrouter-management` for the management key and `AgentsMonitor-openrouter-key-<uuid>`
+per pasted key. `defaults delete` above does not remove these — list and delete them explicitly if
+you want them gone:
 
 ```bash
 # list them
-security dump-keychain 2>/dev/null | grep -A1 'AgentsMonitor-account-' | grep '"svce"' | sort -u
+security dump-keychain 2>/dev/null | grep -A1 -E 'AgentsMonitor-(account|openrouter)-' | grep '"svce"' | sort -u
 
 # delete one by its exact service name
 security delete-generic-password -s "AgentsMonitor-account-<uuid>"
