@@ -99,11 +99,14 @@ MainActor.assumeIsolated {
     store.accounts = snaps.map(\.0)
     for (a, s) in snaps { store.states[a.id] = .ok(s); store.history[a.id] = samples(for: a, snap: s) }
     store.lastRefresh = now
-    render(PopoverView(), size: CGSize(width: 440, height: 0), name: "popover")
+    // Every card expanded and turned over to its graphs.
+    store.expandedAccounts = Set(snaps.map(\.0.id))
     RenderHooks.flipCards = true
-    render(PopoverView(), size: CGSize(width: 440, height: 0), name: "graphs")
+    render(PopoverView(), size: CGSize(width: 460, height: 0), name: "graphs")
     RenderHooks.flipCards = false
-    store.accounts = snaps.map(\.0)
+    store.expandedAccounts = []
+    // One of each placement in the Show in pop-ups.
+    store.accounts = zip(snaps.map(\.0), [Placement.menuBar, .popover, .more, .menuBar]).map { var a = $0; a.placement = $1; return a }
     render(AccountsTab().frame(width: 460, height: 340), size: CGSize(width: 460, height: 340), name: "settings-accounts")
 
     // Compact popover: four Claude accounts (one with an expired login) and Codex, collapsed, then one expanded.
@@ -147,13 +150,13 @@ MainActor.assumeIsolated {
     }
     store.settings.openRouter.managementKeyConfigured = true
     store.openRouterState = .ok(OpenRouterSnapshot(keys: usages, balance: OpenRouterBalance(totalCredits: 100, totalUsage: 57.83)))
-    render(PopoverView(), size: CGSize(width: 460, height: 0), name: "popover-openrouter")
+    render(PopoverView(), size: CGSize(width: 460, height: 0), name: "popover")
     render(PopoverView(), size: CGSize(width: 460, height: 0), name: "popover-openrouter-light", dark: false)
     var archive = claude("Archive", "/Users/example/.claude-archive")
     archive.placement = .more
     store.accounts.append(archive)
     store.states[archive.id] = .ok(snaps[2].1)
-    render(MorePage(filter: .constant(""), onBack: {}, onRepaste: { _ in }), size: CGSize(width: 460, height: 0), name: "more-page")
+    render(MorePage(filter: .constant(""), onBack: {}, onRepaste: { _ in }), size: CGSize(width: 460, height: 0), name: "popover-more")
     store.openRouterState = .stale(OpenRouterSnapshot(keys: usages, balance: OpenRouterBalance(totalCredits: 100, totalUsage: 57.83),
                                                       fetchedAt: now.addingTimeInterval(-720)),
                                    error: "Can't reach OpenRouter: timed out")
@@ -164,13 +167,14 @@ MainActor.assumeIsolated {
     render(PopoverView(), size: CGSize(width: 460, height: 0), name: "popover-openrouter-error")
     render(MorePage(filter: .constant(""), onBack: {}, onRepaste: { _ in }), size: CGSize(width: 460, height: 0), name: "more-page-empty")
 
-    // Settings → OpenRouter (pane size as in SettingsWindow) with the four example rules, then the two sheets.
-    store.openRouterKeys = usages.prefix(11).enumerated().map { index, usage in
+    // Settings → OpenRouter (pane size as in SettingsWindow) with four keys (one pasted) so the four example rules fit, then the two sheets.
+    let settingsKeys = [0, 1, 4, 10].map { usages[$0] }
+    store.openRouterKeys = settingsKeys.enumerated().map { index, usage in
         OpenRouterKeyConfig(id: usage.id, source: usage.error == nil ? .managed : .pasted,
                             placement: index == 0 ? .popover : index == 1 ? .menuBar : .more,
                             lastName: usage.name, lastLabel: usage.label)
     }
-    store.openRouterState = .ok(OpenRouterSnapshot(keys: usages, balance: OpenRouterBalance(totalCredits: 100, totalUsage: 57.83)))
+    store.openRouterState = .ok(OpenRouterSnapshot(keys: settingsKeys, balance: OpenRouterBalance(totalCredits: 100, totalUsage: 57.83)))
     store.spendRules = [
         SpendRule(scope: .allKeys, window: .utcWeek, threshold: 20),
         SpendRule(scope: .eachKey, window: .lastHour, threshold: 5),
@@ -181,7 +185,7 @@ MainActor.assumeIsolated {
     render(OpenRouterTab().frame(width: 520, height: 820), size: CGSize(width: 520, height: 820), name: "settings-openrouter-light", dark: false)
     render(AddOpenRouterKeySheet(), size: CGSize(width: 400, height: 0), name: "add-key-sheet")
     render(SpendRuleSheet(rule: SpendRule(scope: .allKeys, window: .utcWeek, threshold: 20), isNew: true),
-           size: CGSize(width: 440, height: 0), name: "spend-rule-sheet")
+           size: CGSize(width: 440, height: 0), name: "spend-rule")
     render(SpendRuleSheet(rule: store.spendRules[2], isNew: false), size: CGSize(width: 440, height: 0), name: "spend-rule-sheet-cap", dark: false)
     store.openRouterKeys = []
     store.spendRules = []

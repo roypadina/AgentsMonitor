@@ -46,7 +46,7 @@ Click a row (or its chevron) to **expand** it into the full card described below
 button in the card's header collapses it again. With one or two accounts every row starts expanded.
 Which rows are expanded is remembered until you quit the app.
 
-<img src="screenshots/popover.png" alt="Agents Monitor popover showing three account cards" width="420">
+<img src="screenshots/popover.png" alt="Agents Monitor popover: five accounts as one-line rows with meter chips, one expired login, then the OpenRouter row and two pinned keys" width="420">
 
 **Per limit row** (in the expanded card):
 - **Label** — `Session` (the rolling 5-hour window), `Week` (7-day window), or
@@ -77,7 +77,7 @@ the header to switch, and the bar button to turn it back. Every poll is saved to
 `~/Library/Application Support/AgentsMonitor/history.jsonl` (90 days kept), so the graphs fill
 in as the app runs.
 
-<img src="screenshots/graphs.png" alt="An account card turned over to its graph side, 24-hour span" width="393">
+<img src="screenshots/graphs.png" alt="Account cards expanded and turned over to their graph side, 24-hour span" width="393">
 
 **Error states**, shown in place of the limit rows when something's wrong with that account:
 see the [Troubleshooting table](#troubleshooting) for what each one means and how to fix it.
@@ -223,6 +223,8 @@ each pasted key in `AgentsMonitor-openrouter-key-<UUID>`. Keys are sent only to 
 Disconnecting the management key (**Remove…**, asks once) deletes it from the Keychain and drops the
 keys it listed; pasted keys stay.
 
+<img src="screenshots/settings-openrouter.png" alt="Agents Monitor Settings, OpenRouter tab: management key, keys with placement pop-ups, spend alerts" width="440">
+
 ### The More page
 
 Click the OpenRouter row at the bottom of the popover to open the More page, in the same popover.
@@ -231,6 +233,8 @@ More Page. Each key's ⋯ menu changes its placement on the spot. With more than
 field appears. **Back** (**⌘[**) returns to the main page; **Settings…** opens Settings →
 OpenRouter. When OpenRouter cannot be reached, the summary line keeps the last numbers, says how old
 they are, and offers **Try Again**.
+
+<img src="screenshots/popover-more.png" alt="The More page: OpenRouter balance, a key filter, keys with today, week and month spend and cap bars, and an account placed there" width="420">
 
 ### Spend alerts
 
@@ -261,6 +265,8 @@ cap** / "$1.20 of $20.00 left · below $2.00", **OpenRouter — balance** / "$8.
 Each rule is a warning or a critical alert. They are delivered as one "OpenRouter" sender with its own
 **Desktop** and **ntfy** switches and topic override (Settings → OpenRouter); toast and sound follow
 Settings → General. Untick a rule to pause it.
+
+<img src="screenshots/spend-rule.png" alt="The Add Spend Alert sheet" width="440">
 
 ## Alerts
 
