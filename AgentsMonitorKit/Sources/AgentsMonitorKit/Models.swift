@@ -501,6 +501,25 @@ public extension UsageSnapshot {
         picked += others.sorted { ($0.kind == "code_review" ? 0 : 1) < ($1.kind == "code_review" ? 0 : 1) }
         return Array(picked.prefix(3))
     }
+
+    /// The chip limit a compact row's second line is about, or nil when every chip is calm: the worst
+    /// one at warning or worse (server grade or the user's thresholds), at 100%, or on pace to run out
+    /// before it resets (`projectedFull`). Worst = blocked first, then severity, then percent.
+    func attentionLimit(thresholds: AlertThresholds,
+                        projectedFull: (LimitInfo) -> Date?) -> (limit: LimitInfo, severity: Severity, full: Date?)? {
+        let hits = compactLimits.compactMap { limit -> (limit: LimitInfo, severity: Severity, full: Date?)? in
+            let local: Severity = limit.percent >= thresholds.critical ? .critical
+                : limit.percent >= thresholds.warning ? .warning : .normal
+            let severity = max(limit.severity, local)
+            let full = projectedFull(limit)
+            guard severity > .normal || limit.percent >= 100 || full != nil else { return nil }
+            return (limit, severity, full)
+        }
+        return hits.max {
+            ($0.limit.percent >= 100 ? 1 : 0, $0.severity, $0.limit.percent)
+                < ($1.limit.percent >= 100 ? 1 : 0, $1.severity, $1.limit.percent)
+        }
+    }
 }
 
 /// "1h 46m" / "12m".

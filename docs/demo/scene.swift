@@ -82,6 +82,7 @@ private func history(for account: Account, snap: UsageSnapshot) -> [UsageSample]
     base = Date()
     let store = AppStore.shared
     store.accounts = [work, codex]
+    store.expandedAccounts = Set(store.accounts.map(\.id))                 // two accounts start as cards (AppStore.bootstrap)
     store.states[work.id] = .ok(workSnap())
     setCodex(74)
     store.history[codex.id] = history(for: codex, snap: codexSnap(74))
@@ -223,9 +224,9 @@ private func cardRows(_ img: CGImage) -> [Range<Int>] {
     let toast = capture(ToastContent(alert: alert), width: 320)
 
     freshFixtures(); RenderHooks.flipCards = false
-    let front = capture(PopoverView(), width: 440)
+    let front = capture(PopoverView(), width: 460)
     freshFixtures(); RenderHooks.flipCards = true
-    let back = capture(PopoverView(), width: 440)
+    let back = capture(PopoverView(), width: 460)
     RenderHooks.flipCards = false
     precondition(front.width == back.width && front.height == back.height, "the card back keeps the card's size")
     let cards = cardRows(front)

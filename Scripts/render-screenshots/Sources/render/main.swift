@@ -106,6 +106,19 @@ MainActor.assumeIsolated {
     store.accounts = snaps.map(\.0)
     render(AccountsTab().frame(width: 460, height: 340), size: CGSize(width: 460, height: 340), name: "settings-accounts")
 
+    // Compact popover: four Claude accounts (one with an expired login) and Codex, collapsed, then one expanded.
+    let client = claude("Client", "/Users/example/.claude-client")
+    store.accounts = [work, personal, client, side, codex]
+    store.states[client.id] = .needsReauth
+    store.states[side.id] = .ok(UsageSnapshot(limits: [limit("session", 0, resetsIn: 4.8 * h), limit("weekly_all", 100, resetsIn: 2.6 * h),
+                                                       limit("weekly_scoped", 36, resetsIn: 2.6 * h, model: "Fable")], spend: nil))
+    store.expandedAccounts = []
+    render(PopoverView(), size: CGSize(width: 460, height: 0), name: "popover-compact")
+    render(PopoverView(), size: CGSize(width: 460, height: 0), name: "popover-compact-light", dark: false)
+    store.expandedAccounts = [personal.id]
+    render(PopoverView(), size: CGSize(width: 460, height: 0), name: "popover-expanded")
+    store.expandedAccounts = []
+
     let alerts = [
         Alert(accountId: personal.id, accountName: "Personal", key: "weekly_all", title: "Personal: Week at 93%",
               body: "Resets in 31h. Consider switching account.", level: .critical),

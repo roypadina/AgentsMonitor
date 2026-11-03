@@ -47,6 +47,34 @@ final class PlacementTests: XCTestCase {
         XCTAssertEqual(limit("foo_bar", 1).shortTag, "FB")
     }
 
+    func testAttentionLimit() {
+        let thresholds = AlertThresholds(warning: 80, critical: 95)
+        let none: (LimitInfo) -> Date? = { _ in nil }
+        let calm = UsageSnapshot(limits: [limit("session", 52), limit("weekly_all", 12)], spend: nil)
+        XCTAssertNil(calm.attentionLimit(thresholds: thresholds, projectedFull: none))
+
+        // Server grade alone, and the user's thresholds alone, both count.
+        let graded = LimitInfo(kind: "session", group: nil, percent: 60, severity: .warning,
+                               resetsAt: nil, modelDisplayName: nil, isActive: true)
+        XCTAssertEqual(UsageSnapshot(limits: [graded], spend: nil)
+            .attentionLimit(thresholds: thresholds, projectedFull: none)?.severity, .warning)
+        let local = UsageSnapshot(limits: [limit("session", 10), limit("weekly_all", 85)], spend: nil)
+        XCTAssertEqual(local.attentionLimit(thresholds: thresholds, projectedFull: none)?.limit.kind, "weekly_all")
+
+        // Blocked beats a higher severity elsewhere; critical beats warning.
+        let mixed = UsageSnapshot(limits: [limit("session", 98), limit("weekly_all", 100), limit("weekly_scoped", 85, model: "Fable")], spend: nil)
+        XCTAssertEqual(mixed.attentionLimit(thresholds: thresholds, projectedFull: none)?.limit.kind, "weekly_all")
+        let noBlock = UsageSnapshot(limits: [limit("session", 85), limit("weekly_all", 96)], spend: nil)
+        XCTAssertEqual(noBlock.attentionLimit(thresholds: thresholds, projectedFull: none)?.limit.kind, "weekly_all")
+
+        // Pace alone puts a calm limit on line 2, carrying the projection.
+        let full = Date(timeIntervalSince1970: 1_000_000)
+        let paced = calm.attentionLimit(thresholds: thresholds) { $0.kind == "session" ? full : nil }
+        XCTAssertEqual(paced?.limit.kind, "session")
+        XCTAssertEqual(paced?.severity, .normal)
+        XCTAssertEqual(paced?.full, full)
+    }
+
     func testShortCountdown() {
         let now = Date(timeIntervalSince1970: 1_000_000)
         XCTAssertEqual(shortCountdown(to: now, now: now), "0m")
