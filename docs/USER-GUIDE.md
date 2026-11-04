@@ -457,7 +457,8 @@ published.
 - **Open source (MIT).** Every line is in this repo.
 - **No network calls beyond the providers' usage endpoints** (`api.anthropic.com`,
   `chatgpt.com`), OpenRouter's API (`openrouter.ai`) for the keys you add, Anthropic's token endpoint for *remote* accounts only, and your own ntfy
-  server (if configured). No analytics, no telemetry, no third party ever sees your usage data.
+  server (if configured), plus a daily update check that downloads the release feed from github.com.
+  No analytics, no telemetry, no third party ever sees your usage data.
   See [Privacy](../README.md#privacy).
 - **Never refreshes a local account's token.** The one thing that could damage something
   *outside* this app — burning Claude Code's own refresh token — is explicitly guarded against

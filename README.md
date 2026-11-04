@@ -172,6 +172,12 @@ Download the latest `AgentsMonitor.zip` from
 [Releases](https://github.com/roypadina/AgentsMonitor/releases), unzip, and drag
 `AgentsMonitor.app` into `/Applications`.
 
+### Updating
+
+Agents Monitor checks for a new version once a day and asks before installing it (Settings → About →
+**Check for Updates…** checks now). An in-app update needs no `xattr` step. Homebrew users can also run
+`brew upgrade --cask agents-monitor`.
+
 ### Build from source
 
 ```bash
@@ -269,7 +275,9 @@ every request (±1–2s observed) — exact comparison caused an alert on every 
 - **What leaves your Mac.** Only those usage requests: `api.anthropic.com` (Claude) and
   `chatgpt.com` (Codex), each carrying that account's own access token, and `openrouter.ai` for the OpenRouter keys you add. If you turn on **ntfy**,
   alert text (account name, limit, percentage) goes to the ntfy server and topic you configure.
-  Nothing else: no analytics, no telemetry, no update checks, no third parties.
+  Plus an update check: once a day the app downloads `appcast.xml` from github.com (the latest release), which sends nothing about you or your accounts.
+  Nothing else: no analytics, no telemetry, no third parties.
+  To turn the check off: `defaults write com.roy.agentsmonitor SUEnableAutomaticChecks -bool NO`.
 - **Remote accounts.** If you paste credentials for an account that lives on another machine, the
   app stores them in its own device-only Keychain item (not iCloud, not UserDefaults, never
   logged). Because it owns that login, it refreshes those tokens itself by calling Anthropic's
