@@ -45,6 +45,7 @@ private struct AboutView: View {
                 Text("Version \(AboutInfo.version) (\(AboutInfo.build))")
                     .font(.callout)
                     .foregroundStyle(.secondary)
+                Button("Check for Updates…") { Updates.check() }.padding(.top, 4)
             }
 
             VStack(spacing: 8) {

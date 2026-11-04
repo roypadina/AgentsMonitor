@@ -174,8 +174,8 @@ Download the latest `AgentsMonitor.zip` from
 
 ### Updating
 
-Agents Monitor checks for a new version once a day and asks before installing it (Settings → About →
-**Check for Updates…** checks now). An in-app update needs no `xattr` step. Homebrew users can also run
+Agents Monitor checks for a new version once a day and asks before installing it (**Check for Updates…** in the
+About window or Settings → About checks now). An in-app update needs no `xattr` step. Homebrew users can also run
 `brew upgrade --cask agents-monitor`.
 
 ### Build from source
