@@ -23,6 +23,8 @@ MACOSX_DEPLOYMENT_TARGET = 14.0
 GENERATE_INFOPLIST_FILE = YES
 // Extra keys (Sparkle feed + public key) merged into the generated plist.
 INFOPLIST_FILE = Config/Info.plist
+// Embedded Sparkle.framework lives in Contents/Frameworks; without this rpath dyld aborts at launch.
+LD_RUNPATH_SEARCH_PATHS = $(inherited) @executable_path/../Frameworks
 // Menu-bar agent: no Dock icon, no main window on launch.
 INFOPLIST_KEY_LSUIElement = YES
 
