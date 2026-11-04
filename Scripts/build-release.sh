@@ -35,17 +35,19 @@ echo build/AgentsMonitor.zip
 
 # Sparkle feed for this release only (served as the latest release's appcast.xml asset).
 SPARKLE=build/SourcePackages/artifacts/sparkle/Sparkle/bin
-if "$SPARKLE/generate_keys" -p >/dev/null 2>&1; then
+# Only with the key whose public half the app ships; any other key makes a feed every copy refuses.
+if [ "$("$SPARKLE/generate_keys" -p 2>/dev/null)" = "$(/usr/libexec/PlistBuddy -c 'Print SUPublicEDKey' "$APP/Contents/Info.plist")" ]; then
   VER=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$APP/Contents/Info.plist")
   D=$(mktemp -d)
   cp build/AgentsMonitor.zip "$D/"
   # This version's CHANGELOG section becomes the update prompt's release notes.
   awk -v v="## [$VER]" 'index($0, v) == 1 {f=1; next} /^## \[/ {f=0} f' CHANGELOG.md > "$D/AgentsMonitor.md"
+  rm -f build/appcast.xml  # generate_appcast merges into an existing file
   "$SPARKLE/generate_appcast" --embed-release-notes \
     --download-url-prefix "https://github.com/roypadina/AgentsMonitor/releases/download/v$VER/" \
     -o build/appcast.xml "$D"
   rm -rf "$D"
   echo build/appcast.xml
 else
-  echo "Sparkle signing key not in the keychain: no appcast.xml"
+  echo "Sparkle signing key (matching SUPublicEDKey) not in the keychain: no appcast.xml"
 fi

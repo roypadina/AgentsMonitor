@@ -5,8 +5,28 @@ import Sparkle
 
 /// Sparkle updater: feed URL + public key come from Config/Info.plist.
 @MainActor enum Updates {
-    static let controller = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
+    static let controller = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: presenter)
     static func check() { controller.checkForUpdates(nil) }
+    private static let presenter = Presenter()
+
+    /// A menu-bar-only app's scheduled update alert opens behind other windows, with no Dock icon to
+    /// find it by. Same as `AccessoryWindows`: Dock icon + front while the alert is up, then back.
+    private final class Presenter: NSObject, SPUStandardUserDriverDelegate {
+        var supportsGentleScheduledUpdateReminders: Bool { true }
+
+        func standardUserDriverWillHandleShowingUpdate(_ handleShowingUpdate: Bool, forUpdate update: SUAppcastItem, state: SPUUserUpdateState) {
+            NSApp.setActivationPolicy(.regular)
+            NSApp.activate()
+        }
+
+        func standardUserDriverWillFinishUpdateSession() {
+            DispatchQueue.main.async {  // after Sparkle's window has closed
+                if !NSApp.windows.contains(where: { $0.isVisible && $0.canBecomeMain }) {
+                    NSApp.setActivationPolicy(.accessory)
+                }
+            }
+        }
+    }
 }
 
 @main

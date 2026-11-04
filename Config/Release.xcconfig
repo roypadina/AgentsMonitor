@@ -4,5 +4,9 @@
 
 #include "Shared.xcconfig"
 
+// No get-task-allow in release builds (Xcode injects it outside archives): with the hardened
+// runtime it would let any process of the user attach a debugger and read tokens from memory.
+CODE_SIGN_INJECT_BASE_ENTITLEMENTS = NO
+
 // No additional release-specific overrides needed
 // All release settings use Xcode project defaults
