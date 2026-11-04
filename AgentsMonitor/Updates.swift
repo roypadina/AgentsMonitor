@@ -13,7 +13,7 @@ import Sparkle
 
     /// Remembers a found update for the menu, and gives the menu-bar-only app a Dock icon + front
     /// window while an update alert is up (it would open behind other windows otherwise).
-    private final class Presenter: NSObject, SPUUpdaterDelegate, SPUStandardUserDriverDelegate {
+    private final class Presenter: NSObject, SPUUpdaterDelegate, @preconcurrency SPUStandardUserDriverDelegate {
         // Sparkle calls these on the main thread; its header just doesn't say so to Swift.
         func updater(_ updater: SPUUpdater, didFindValidUpdate item: SUAppcastItem) {
             let version = item.displayVersionString
