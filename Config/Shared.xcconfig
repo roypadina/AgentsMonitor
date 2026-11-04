@@ -21,6 +21,8 @@ MACOSX_DEPLOYMENT_TARGET = 14.0
 // Info PLIST
 // ==========================================
 GENERATE_INFOPLIST_FILE = YES
+// Extra keys (Sparkle feed + public key) merged into the generated plist.
+INFOPLIST_FILE = Config/Info.plist
 // Menu-bar agent: no Dock icon, no main window on launch.
 INFOPLIST_KEY_LSUIElement = YES
 

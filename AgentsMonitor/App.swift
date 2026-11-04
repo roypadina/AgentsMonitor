@@ -1,6 +1,13 @@
 import SwiftUI
 import UserNotifications
 import AgentsMonitorKit
+import Sparkle
+
+/// Sparkle updater: feed URL + public key come from Config/Info.plist.
+@MainActor enum Updates {
+    static let controller = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil)
+    static func check() { controller.checkForUpdates(nil) }
+}
 
 @main
 struct AgentsMonitorApp: App {
@@ -14,6 +21,9 @@ struct AgentsMonitorApp: App {
         }
         .menuBarExtraStyle(.window)
         .commands {  // App menu while a window is open (policy .regular)
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") { Updates.check() }
+            }
             CommandGroup(replacing: .appSettings) {
                 Button("Settings…") { SettingsWindow.shared.show() }.keyboardShortcut(",")
             }
@@ -30,6 +40,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         store.onAlerts = Notifier.deliver
         store.bootstrap()
         LoginItem.ensureRegistered()
+        _ = Updates.controller  // starts the daily update check
 
         // First launch only (MBX-18). Existing users see it once after the update.
         if !UserDefaults.standard.bool(forKey: "didShowWelcome") {
