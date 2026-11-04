@@ -112,6 +112,7 @@ struct AboutTab: View {
                 .resizable().frame(width: 64, height: 64)
             Text("Agents Monitor").font(.title2.bold())
             Text("Version \(AboutInfo.version)").font(.caption).foregroundStyle(.secondary)
+            Button("Check for Updates…") { Updates.check() }  // own row: the button row below is full at 520 pt
             HStack {
                 Button("About Agents Monitor…") { AboutInfo.showWindow() }
                 Button("Welcome Guide…") { WelcomeWindow.show() }

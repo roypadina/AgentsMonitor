@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		8B90D1482DEDD44A00FBD189 /* AgentsMonitorKit in Frameworks */ = {isa = PBXBuildFile; productRef = 8B90D1472DEDD44A00FBD189 /* AgentsMonitorKit */; };
+		359FE202F8962965AF1D2D18 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 9EE64ADD7330F847D98C4DC4 /* Sparkle */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -30,6 +31,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Debug.xcconfig,
+				Info.plist,
 				Release.xcconfig,
 				Shared.xcconfig,
 				Tests.xcconfig,
@@ -65,6 +67,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				8B90D1482DEDD44A00FBD189 /* AgentsMonitorKit in Frameworks */,
+				359FE202F8962965AF1D2D18 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -127,6 +130,7 @@
 			name = AgentsMonitor;
 			packageProductDependencies = (
 				8B90D1472DEDD44A00FBD189 /* AgentsMonitorKit */,
+				9EE64ADD7330F847D98C4DC4 /* Sparkle */,
 			);
 			productName = AgentsMonitor;
 			productReference = 8BC2655C2DEDD3F400F279A4 /* AgentsMonitor.app */;
@@ -184,6 +188,9 @@
 			);
 			mainGroup = 8BC265532DEDD3F400F279A4;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				C0BFAD0ECC2FBA9039BB44A1 /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 8BC2655D2DEDD3F400F279A4 /* Products */;
 			projectDirPath = "";
@@ -322,10 +329,26 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		C0BFAD0ECC2FBA9039BB44A1 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.10.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		8B90D1472DEDD44A00FBD189 /* AgentsMonitorKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = AgentsMonitorKit;
+		};
+		9EE64ADD7330F847D98C4DC4 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C0BFAD0ECC2FBA9039BB44A1 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

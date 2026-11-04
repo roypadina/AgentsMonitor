@@ -1,6 +1,33 @@
 import SwiftUI
 import UserNotifications
 import AgentsMonitorKit
+import Sparkle
+
+/// Sparkle updater: feed URL + public key come from Config/Info.plist.
+@MainActor enum Updates {
+    static let controller = SPUStandardUpdaterController(startingUpdater: true, updaterDelegate: nil, userDriverDelegate: presenter)
+    static func check() { controller.checkForUpdates(nil) }
+    private static let presenter = Presenter()
+
+    /// A menu-bar-only app's scheduled update alert opens behind other windows, with no Dock icon to
+    /// find it by. Same as `AccessoryWindows`: Dock icon + front while the alert is up, then back.
+    private final class Presenter: NSObject, SPUStandardUserDriverDelegate {
+        var supportsGentleScheduledUpdateReminders: Bool { true }
+
+        func standardUserDriverWillHandleShowingUpdate(_ handleShowingUpdate: Bool, forUpdate update: SUAppcastItem, state: SPUUserUpdateState) {
+            NSApp.setActivationPolicy(.regular)
+            NSApp.activate()
+        }
+
+        func standardUserDriverWillFinishUpdateSession() {
+            DispatchQueue.main.async {  // after Sparkle's window has closed
+                if !NSApp.windows.contains(where: { $0.isVisible && $0.canBecomeMain }) {
+                    NSApp.setActivationPolicy(.accessory)
+                }
+            }
+        }
+    }
+}
 
 @main
 struct AgentsMonitorApp: App {
@@ -14,6 +41,9 @@ struct AgentsMonitorApp: App {
         }
         .menuBarExtraStyle(.window)
         .commands {  // App menu while a window is open (policy .regular)
+            CommandGroup(after: .appInfo) {
+                Button("Check for Updates…") { Updates.check() }
+            }
             CommandGroup(replacing: .appSettings) {
                 Button("Settings…") { SettingsWindow.shared.show() }.keyboardShortcut(",")
             }
@@ -30,6 +60,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         store.onAlerts = Notifier.deliver
         store.bootstrap()
         LoginItem.ensureRegistered()
+        _ = Updates.controller  // starts the daily update check
 
         // First launch only (MBX-18). Existing users see it once after the update.
         if !UserDefaults.standard.bool(forKey: "didShowWelcome") {

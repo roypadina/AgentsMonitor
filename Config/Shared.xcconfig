@@ -9,8 +9,8 @@
 PRODUCT_NAME = AgentsMonitor
 PRODUCT_DISPLAY_NAME = Agents Monitor
 PRODUCT_BUNDLE_IDENTIFIER = com.roy.agentsmonitor
-MARKETING_VERSION = 1.8.0
-CURRENT_PROJECT_VERSION = 24
+MARKETING_VERSION = 1.9.0
+CURRENT_PROJECT_VERSION = 25
 
 // ==========================================
 // Platform Configuration
@@ -21,6 +21,8 @@ MACOSX_DEPLOYMENT_TARGET = 14.0
 // Info PLIST
 // ==========================================
 GENERATE_INFOPLIST_FILE = YES
+// Extra keys (Sparkle feed + public key) merged into the generated plist.
+INFOPLIST_FILE = Config/Info.plist
 // Menu-bar agent: no Dock icon, no main window on launch.
 INFOPLIST_KEY_LSUIElement = YES
 

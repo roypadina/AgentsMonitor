@@ -1,5 +1,6 @@
 #!/bin/sh
-# Universal release build + zip: build/AgentsMonitor.zip.
+# Universal release build + zip: build/AgentsMonitor.zip, plus build/appcast.xml (Sparkle feed)
+# when the maintainer's Sparkle EdDSA key is in the login keychain. Upload both to the release.
 # Signed with the maintainer's stable "KeyLayoutSwitcher Dev" identity when it is in the keychain
 # (so macOS permission grants survive updates); override with AGENTSMONITOR_SIGN_IDENTITY.
 # Otherwise (CI, contributors) the build stays ad-hoc signed.
@@ -15,8 +16,9 @@ fi
 if [ -n "$ID" ]; then
   ENT=$(mktemp)
   codesign -d --entitlements :- "$APP" > "$ENT" 2>/dev/null
-  # Inside-out: any nested bundle or Mach-O (none today) before the app itself.
-  find "$APP/Contents" -depth \( -name '*.framework' -o -name '*.xpc' -o -name '*.app' -o -name '*.dylib' \) \
+  # Inside-out: nested bundles and Sparkle's Autoupdate tool before the app itself.
+  find "$APP/Contents" -depth \( -name '*.framework' -o -name '*.xpc' -o -name '*.app' -o -name '*.dylib' \
+    -o \( -name Autoupdate -type f \) \) \
     -not -path "$APP" | while read -r f; do
     codesign --force --options runtime --preserve-metadata=identifier,entitlements,flags -s "$ID" "$f"
   done
@@ -30,3 +32,22 @@ fi
 rm -f build/AgentsMonitor.zip
 ditto -c -k --keepParent "$APP" build/AgentsMonitor.zip
 echo build/AgentsMonitor.zip
+
+# Sparkle feed for this release only (served as the latest release's appcast.xml asset).
+SPARKLE=build/SourcePackages/artifacts/sparkle/Sparkle/bin
+# Only with the key whose public half the app ships; any other key makes a feed every copy refuses.
+if [ "$("$SPARKLE/generate_keys" -p 2>/dev/null)" = "$(/usr/libexec/PlistBuddy -c 'Print SUPublicEDKey' "$APP/Contents/Info.plist")" ]; then
+  VER=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' "$APP/Contents/Info.plist")
+  D=$(mktemp -d)
+  cp build/AgentsMonitor.zip "$D/"
+  # This version's CHANGELOG section becomes the update prompt's release notes.
+  awk -v v="## [$VER]" 'index($0, v) == 1 {f=1; next} /^## \[/ {f=0} f' CHANGELOG.md > "$D/AgentsMonitor.md"
+  rm -f build/appcast.xml  # generate_appcast merges into an existing file
+  "$SPARKLE/generate_appcast" --embed-release-notes \
+    --download-url-prefix "https://github.com/roypadina/AgentsMonitor/releases/download/v$VER/" \
+    -o build/appcast.xml "$D"
+  rm -rf "$D"
+  echo build/appcast.xml
+else
+  echo "Sparkle signing key (matching SUPublicEDKey) not in the keychain: no appcast.xml"
+fi

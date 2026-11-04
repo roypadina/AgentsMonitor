@@ -5,6 +5,13 @@ All notable changes to Agents Monitor (formerly Claude Monitor) are documented h
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [1.9.0] - 2026-11-04
+
+### Added
+- Updates from inside the app. Agents Monitor checks for a new version once a day and asks before installing it; tick "Automatically download and install updates" in that prompt to skip the question next time. Check by hand from Settings → About or the app menu (**Check for Updates…**). Updates are signed, and installing one this way needs no `xattr` step.
+
 ## [1.8.0] - 2026-11-04
 
 ### Added
