@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.2] - 2026-11-04
+
+### Added
+- Right-click (or Control-click) the menu-bar icon for a menu: **Check for Updates…** (or **Install Update X.Y.Z…** once one is found), Settings, About, Support and Quit.
+
 ## [1.9.1] - 2026-11-04
 
 ### Changed
