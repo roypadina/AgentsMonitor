@@ -329,6 +329,8 @@ Free, open-source Mac menu-bar apps and terminal tools, all on one site: **[apps
 
 If Agents Monitor saves you from hitting a usage limit by surprise, you can support its development — it's optional and always appreciated.
 
+Once in a while, Agents Monitor asks too. A small receipt card shows up about 10 seconds after you close the popover on a calm look at your usage, with every account under your warning threshold. It only appears after more than 2,000 usage checks (about 3 weeks), and at most 3 times a year. "Ask me in 2 weeks" snoozes it, and "Nope, don't ask again" keeps it away until the next major version. If an alert fires or an Agents Monitor window opens while the card is still open, it closes and counts as a snooze; one left unanswered for 5 minutes, or when you step away, fades and counts as a snooze too. It never shows next to a limit, an alert or an error, never takes keyboard focus, and its counts stay on your Mac.
+
 [![Support me on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/roypadina)
 
 A ⭐ on the repo helps just as much.

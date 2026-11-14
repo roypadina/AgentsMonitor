@@ -30,11 +30,12 @@ struct AgentsMonitorApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         let store = AppStore.shared
-        store.onAlerts = Notifier.deliver
+        store.onAlerts = { SupportPrompt.shared.alerted(sent: Notifier.deliver($0, account: $1)) }
         store.bootstrap()
         LoginItem.ensureRegistered()
         _ = Updates.controller  // starts the daily update check
         StatusMenu.shared.install()
+        SupportPrompt.shared.start()
 
         // First launch only (MBX-18). Existing users see it once after the update.
         if !UserDefaults.standard.bool(forKey: "didShowWelcome") {
