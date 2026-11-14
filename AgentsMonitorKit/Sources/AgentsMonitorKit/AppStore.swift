@@ -91,6 +91,9 @@ public final class AppStore {
     private static let scannedProvidersKey = "AgentsMonitor.scannedProviders"
     private static let openRouterKeysKey = "AgentsMonitor.openRouterKeys"
     private static let spendRulesKey = "AgentsMonitor.spendRules"
+    /// Polls that brought fresh numbers for at least one account: the Ko-fi card's "usage checks"
+    /// (SupportPrompt.swift). Counting starts with the version that ships the card.
+    static let usageChecksKey = "AgentsMonitor.usageChecks"
     private static let log = Logger(subsystem: "com.roy.agentsmonitor", category: "poll")
 
     public init() {}
@@ -349,6 +352,9 @@ public final class AppStore {
             }
         }
 
+        if results.contains(where: { if case .ok = $0.1 { return true } else { return false } }) {
+            UserDefaults.standard.set(usageChecks + 1, forKey: Self.usageChecksKey)
+        }
         applyOpenRouter(await openRouter, now: now)
         usageHistory.append(newSamples)
 
@@ -406,6 +412,22 @@ public final class AppStore {
     public func stopPolling() {
         pollTask?.cancel()
         pollTask = nil
+    }
+
+    public var usageChecks: Int { UserDefaults.standard.integer(forKey: Self.usageChecksKey) }
+
+    /// Every account has fresh numbers, all under the warning threshold: a calm look at the popover is
+    /// the Ko-fi card's moment, never one next to a limit or an error.
+    public var isCalm: Bool {
+        switch openRouterState {  // an OpenRouter error line is not a calm look either
+        case .stale, .failed: return false
+        case .ok(let s) where s.managementError != nil || s.keys.contains(where: { $0.error != nil }): return false
+        default: break
+        }
+        return !accounts.isEmpty && accounts.allSatisfy { account in
+            guard case .ok(let snapshot) = states[account.id] else { return false }
+            return snapshot.worstPercent < settings.thresholds.warning && snapshot.worstSeverity == .normal
+        }
     }
 
     public var worst: (percent: Int, severity: Severity)? {

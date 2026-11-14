@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.10.0] - 2026-11-14
+
+### Added
+- Ko-fi support card: about 10 seconds after you close the popover on a calm look at your usage (every account with fresh numbers, all under your warning threshold), a small receipt card may ask for a tip. It waits until 7 days after you install or update to this version, and until Agents Monitor has made more than 2,000 usage checks (about 3 weeks of polling every 5 minutes). It asks at most 3 times a year, only when you used the Mac in the last 10 seconds, and never while you are typing, a menu or an Agents Monitor window is open, a mouse button is held down, a usage check is running, an alert fired in the last hour, the screen is locked or the microphone is in use. "Ask me in 2 weeks" snoozes it, a tip keeps it quiet for 180 days, and "Nope, don't ask again" keeps it quiet until the next major version, and for at least 90 days. A card still open when an alert fires, an Agents Monitor window or update prompt opens, or the Mac sleeps or locks, closes and counts as a snooze; one left unanswered for 5 minutes, or 2 minutes without input, fades and counts as a snooze too. The card never takes keyboard focus, and the same three choices head the right-click menu while it shows, for keyboard and VoiceOver users. Hold ⌥ in the right-click menu for "Show Support Prompt Now" to preview it. Its counts (usage checks and alerts sent, since this version) stay on your Mac, in the app's preferences; nothing is sent.
+
 ## [1.9.2] - 2026-11-04
 
 ### Added

@@ -30,6 +30,7 @@ struct PopoverView: View {
             footer
         }
         .frame(width: 460)
+        .background(PopoverWindowReader())  // the Ko-fi card's moment is this window closing (SupportPrompt.swift)
         .sheet(item: $repasteAccount) { account in
             RemoteCredentialsSheet(
                 mode: .repaste(accountId: account.id, accountName: account.name),
@@ -91,7 +92,7 @@ struct PopoverView: View {
                     .keyboardShortcut(",")
                     .accessibilityLabel("Settings")
                 Button("About") { AboutInfo.showWindow() }
-                Button("Support ☕") { NSWorkspace.shared.open(AboutInfo.kofi) }
+                Button("Support ☕") { SupportPrompt.shared.openKofi() }
                 Button("Quit") { NSApplication.shared.terminate(nil) }
                     .keyboardShortcut("q")
                     .accessibilityLabel("Quit")

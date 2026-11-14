@@ -9,11 +9,15 @@ import AgentsMonitorKit
 /// `AppStore.onAlerts`, which fires from inside `AppStore.refresh()` — already on MainActor.
 @MainActor
 enum Notifier {
-    static func deliver(_ alerts: [Alert], account: Account) {
-        guard !alerts.isEmpty else { return }
+    /// Returns how many alerts went out on at least one channel.
+    @discardableResult
+    static func deliver(_ alerts: [Alert], account: Account) -> Int {
+        guard !alerts.isEmpty else { return 0 }
         let settings = AppStore.shared.settings
+        var sent = 0
 
         for alert in alerts {
+            var out = account.desktopAlerts || settings.toastEnabled
             if account.desktopAlerts {
                 postDesktopNotification(alert)
             }
@@ -23,12 +27,15 @@ enum Notifier {
                     : settings.ntfyDefaultTopic
                 if !topic.isEmpty {
                     postNtfy(alert, server: settings.ntfyServer, topic: topic)
+                    out = true
                 }
             }
             if settings.toastEnabled {
                 ToastPanel.show(alert)
             }
+            if out { sent += 1 }
         }
+        return sent
     }
 
     private static func postDesktopNotification(_ alert: Alert) {
