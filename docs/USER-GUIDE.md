@@ -102,7 +102,7 @@ A local account is any `CLAUDE_CONFIG_DIR` that's already logged in to Claude Co
   later from Settings → Accounts → **+** → **Claude Code Account…** (folder picker).
 - **Naming:** taken from `oauthAccount.emailAddress` (or `organizationName`) in that profile's
   `~/.claude*/.claude.json`. If no label is found, it falls back to the directory name. Rename
-  any account from Settings or from the popover.
+  any account from Settings → Accounts (double-click it, or **Rename…**).
 - **Login email:** that same `oauthAccount.emailAddress` (for `~/.claude`, also looked up in
   `~/.claude.json`) shows next to the account name in the popover row, the account card and
   Settings → Accounts whenever the name is something else (after a rename).
