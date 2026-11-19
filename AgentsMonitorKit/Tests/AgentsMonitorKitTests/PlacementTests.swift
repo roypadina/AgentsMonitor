@@ -89,5 +89,9 @@ final class PlacementTests: XCTestCase {
         XCTAssertEqual(store.accounts.map(\.name), ["b", "c", "a"])
         store.moveAccounts(fromOffsets: IndexSet(integer: 2), toOffset: 0)
         XCTAssertEqual(store.accounts.map(\.name), ["a", "b", "c"])
+        store.moveAccounts(fromOffsets: [1], toOffset: 3)   // Move Down (i + 2)
+        XCTAssertEqual(store.accounts.map(\.name), ["a", "c", "b"])
+        store.moveAccounts(fromOffsets: [1], toOffset: 0)   // Move Up (i - 1)
+        XCTAssertEqual(store.accounts.map(\.name), ["c", "a", "b"])
     }
 }
