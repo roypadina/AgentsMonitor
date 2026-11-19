@@ -99,10 +99,10 @@ A local account is any `CLAUDE_CONFIG_DIR` that's already logged in to Claude Co
 
 - **Discovery is automatic on first launch:** Agents Monitor checks `~/.claude` and globs
   `~/.claude-*`, adding every directory that has a matching keychain entry. You can add more
-  later from Settings → Accounts → **Add Account → Claude Code Account…** (folder picker).
+  later from Settings → Accounts → **+** → **Claude Code Account…** (folder picker).
 - **Naming:** taken from `oauthAccount.emailAddress` (or `organizationName`) in that profile's
   `~/.claude*/.claude.json`. If no label is found, it falls back to the directory name. Rename
-  any account from Settings or from the popover.
+  any account from Settings → Accounts (double-click it, or **Rename…**).
 - **Login email:** that same `oauthAccount.emailAddress` (for `~/.claude`, also looked up in
   `~/.claude.json`) shows next to the account name in the popover row, the account card and
   Settings → Accounts whenever the name is something else (after a rename).
@@ -124,7 +124,7 @@ default, or `~/.codex-<name>` for an additional profile.
 
 - **Discovery is automatic:** every `~/.codex*` directory holding an `auth.json` with a readable
   ChatGPT token becomes an account. Add a non-standard location later from Settings → Accounts →
-  **Add Account → Codex Account…** (folder picker). A login that only has an API key in it (`auth_mode:
+  **+** → **Codex Account…** (folder picker). A login that only has an API key in it (`auth_mode:
   apikey`) is skipped — there's no plan usage behind it to report.
 - **Naming:** the signed-in address, read from the claims of the stored `id_token`. Falls back to
   the directory name, and renameable like any other account.
@@ -146,7 +146,7 @@ this Mac at all — typically
 another machine, or a CI box. Agents Monitor owns its credentials entirely: it stores them in
 its own keychain item and refreshes the token itself when it expires.
 
-**To add one:** Settings → Accounts → **Add Account → Remote Claude Account…**, then paste the credentials JSON
+**To add one:** Settings → Accounts → **+** → **Remote Claude Account…**, then paste the credentials JSON
 from the source machine:
 
 ```bash
@@ -339,13 +339,15 @@ Settings is its own window, with the panes **Accounts**, **OpenRouter**, **Alert
 sized to its content. It shows in the Dock and ⌘-Tab while open, reopens on the last pane, and opening
 Agents Monitor again from Applications or Raycast brings it up. All changes are persisted immediately.
 
-**Accounts** — the full account list: rename (the **Rename** button next to each name — an
-inline field, Return or **Save** to commit), per-account **Desktop** and **ntfy** toggles, a
-per-account ntfy topic override, the **Show in** pop-up ([placement](#placement)), remove, plus the
-**Add Account** menu: **Claude Code Account…** /
-**Codex Account…** (folder pickers validated
-against a real keychain entry) and **Remote Claude Account…** (paste sheet). A remote account
-showing "Credentials expired" gets a **Repaste…** button right on its row.
+**Accounts** — the full account list (name, login email, Local/Remote, provider badge), with **+** /
+**−** under it: **+** is the **Add Account** menu (**Claude Code Account…** / **Codex Account…** —
+folder pickers validated against a real keychain entry — and **Remote Claude Account…**, a paste
+sheet), **−** removes the selected account. Below the list are the selected account's options: **Name**
+with **Rename…**, the **Show in** pop-up ([placement](#placement)), **Desktop alerts**, **ntfy alerts**,
+the ntfy topic override and, for a remote account, **Credentials → Repaste…**. Rename opens a small
+sheet (double-click an account, or right-click → **Rename…**); Return saves, an empty name is ignored.
+Right-click an account for **Rename…**, **Repaste Credentials…** (remote), **Move Up** / **Move Down**
+and **Remove**.
 
 **OpenRouter** — see [OpenRouter](#openrouter):
 - **Management Key** — paste it and click **Connect** (Return works too). A spinner shows while it is

@@ -94,4 +94,16 @@ final class PlacementTests: XCTestCase {
         store.moveAccounts(fromOffsets: [1], toOffset: 0)   // Move Up (i - 1)
         XCTAssertEqual(store.accounts.map(\.name), ["c", "a", "b"])
     }
+
+    @MainActor func testRenameAccount() {
+        let store = AppStore()
+        store.accounts = [Account(name: "old", kind: .remote)]
+        let id = store.accounts[0].id
+        store.renameAccount(id, to: "  Work \n")
+        XCTAssertEqual(store.accounts[0].name, "Work")
+        store.renameAccount(id, to: "   ")
+        XCTAssertEqual(store.accounts[0].name, "Work")
+        store.renameAccount(UUID(), to: "Other")
+        XCTAssertEqual(store.accounts[0].name, "Work")
+    }
 }

@@ -107,7 +107,7 @@ MainActor.assumeIsolated {
     store.expandedAccounts = []
     // One of each placement in the Show in pop-ups.
     store.accounts = zip(snaps.map(\.0), [Placement.menuBar, .popover, .more, .menuBar]).map { var a = $0; a.placement = $1; return a }
-    render(AccountsTab().frame(width: 460, height: 340), size: CGSize(width: 460, height: 340), name: "settings-accounts")
+    render(AccountsTab().frame(width: 520, height: 500), size: CGSize(width: 520, height: 500), name: "settings-accounts")
 
     // Compact popover: four Claude accounts (one with an expired login) and Codex, collapsed, then one expanded.
     let client = claude("Client", "/Users/example/.claude-client")

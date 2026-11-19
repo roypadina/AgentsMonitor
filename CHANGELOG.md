@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.0] - 2026-11-19
+
+### Fixed
+- Settings → Accounts: renaming an account works. The inline name field opened without keyboard focus, so typing went to the list; rename now opens a small sheet with the name field focused (double-click an account, right-click → Rename…, or **Rename…** next to the account's Name). A blank name is ignored.
+
+### Changed
+- Settings → Accounts redesigned in the System Settings style: a list (name, login email, Local/Remote, provider badge) with + / − under it, and the selected account's options (Show in, Desktop and ntfy alerts, ntfy topic, Repaste…) below. Drag to reorder as before; right-click adds Rename…, Repaste Credentials…, Move Up / Move Down and Remove.
+
 ## [1.12.0] - 2026-11-19
 
 ### Added
