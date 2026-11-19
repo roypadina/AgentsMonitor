@@ -134,7 +134,7 @@ Three sinks, each toggleable per account in Settings:
 - **Toast** — a floating panel top-right with a slide-and-fade animation and a sound
 
 <div align="center">
-<img src="docs/screenshots/settings-accounts.png" alt="Settings, Accounts tab: accounts with per-account Desktop and ntfy toggles and a Show in pop-up set to Menu Bar and Popover, Popover or More Page." width="420">
+<img src="docs/screenshots/settings-accounts.png" alt="Settings, Accounts tab: a list of accounts (Work, Personal, Side project, Codex) with + and − below, and the selected account's options: Name with Rename…, Show in set to Menu Bar and Popover, Desktop and ntfy alert switches and the ntfy topic." width="420">
 <br><br>
 <img src="docs/screenshots/toasts.png" alt="Agents Monitor toast notifications stacking top-right: a weekly-limit alert, an extra-usage alert and a Codex session alert." width="420">
 <br><br>

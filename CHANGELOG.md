@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.13.0] - 2026-11-19
+
 ### Fixed
 - Settings → Accounts: renaming an account works. The inline name field opened without keyboard focus, so typing went to the list; rename now opens a small sheet with the name field focused (double-click an account, right-click → Rename…, or Rename… under the list). A blank name is ignored.
 

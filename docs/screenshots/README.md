@@ -13,7 +13,7 @@ cp /tmp/am-screens/{popover,popover-more,graphs,settings-accounts,settings-openr
   OpenRouter row and two pinned keys.
 - `popover-more.png`: the More page with the OpenRouter keys, the balance and an account placed there.
 - `graphs.png`: every card expanded and turned over to its graphs.
-- `settings-accounts.png`: Settings > Accounts with the **Show in** pop-up.
+- `settings-accounts.png`: Settings > Accounts: the account list and the selected account's options.
 - `settings-openrouter.png`: Settings > OpenRouter with a management key, four keys and spend alerts.
 - `spend-rule.png`: the Add Spend Alert sheet.
 - `toasts.png`: three toast alerts.
