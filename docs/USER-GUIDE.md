@@ -339,13 +339,15 @@ Settings is its own window, with the panes **Accounts**, **OpenRouter**, **Alert
 sized to its content. It shows in the Dock and ⌘-Tab while open, reopens on the last pane, and opening
 Agents Monitor again from Applications or Raycast brings it up. All changes are persisted immediately.
 
-**Accounts** — the full account list: rename (the **Rename** button next to each name — an
-inline field, Return or **Save** to commit), per-account **Desktop** and **ntfy** toggles, a
-per-account ntfy topic override, the **Show in** pop-up ([placement](#placement)), remove, plus the
-**Add Account** menu: **Claude Code Account…** /
-**Codex Account…** (folder pickers validated
-against a real keychain entry) and **Remote Claude Account…** (paste sheet). A remote account
-showing "Credentials expired" gets a **Repaste…** button right on its row.
+**Accounts** — the full account list (name, login email, Local/Remote, provider badge), with **+** /
+**−** under it: **+** is the **Add Account** menu (**Claude Code Account…** / **Codex Account…** —
+folder pickers validated against a real keychain entry — and **Remote Claude Account…**, a paste
+sheet), **−** removes the selected account. Below the list are the selected account's options: **Name**
+with **Rename…**, the **Show in** pop-up ([placement](#placement)), **Desktop alerts**, **ntfy alerts**,
+the ntfy topic override and, for a remote account, **Credentials → Repaste…**. Rename opens a small
+sheet (double-click an account, or right-click → **Rename…**); Return saves, an empty name is ignored.
+Right-click an account for **Rename…**, **Repaste Credentials…** (remote), **Move Up** / **Move Down**
+and **Remove**.
 
 **OpenRouter** — see [OpenRouter](#openrouter):
 - **Management Key** — paste it and click **Connect** (Return works too). A spinner shows while it is

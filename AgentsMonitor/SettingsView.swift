@@ -135,34 +135,62 @@ struct AccountsTab: View {
     private let store = AppStore.shared
     @State private var showAddRemote = false
     @State private var repasteAccount: Account?
-    @State private var renameId: UUID?
-    @State private var renameText = ""
+    @State private var renameAccount: Account?
+    @State private var selection: UUID?
+
+    private var selected: Account? { store.accounts.first { $0.id == selection } }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            List {
-                ForEach(store.accounts) { account in
-                    accountRow(account)
-                }
-                .onMove { store.moveAccounts(fromOffsets: $0, toOffset: $1); store.save() }
+        VStack(alignment: .leading, spacing: 0) {
+            // System Settings idiom: a bordered list, +/− under it, the selected account's options below.
+            List(selection: $selection) {
+                ForEach(store.accounts) { accountRow($0) }
+                    .onMove { store.moveAccounts(fromOffsets: $0, toOffset: $1); store.save() }
             }
-            .listStyle(.inset)
-            Text("Drag rows (or right-click → Move Up / Move Down) to reorder; the menu bar and panel follow this order.")
-                .font(.caption).foregroundStyle(.secondary)
-
-            HStack {
+            .listStyle(.bordered(alternatesRowBackgrounds: false))
+            .frame(height: 150)
+            .contextMenu(forSelectionType: UUID.self) { ids in
+                if let id = ids.first, let account = store.accounts.first(where: { $0.id == id }) {
+                    accountMenu(account)
+                }
+            } primaryAction: { ids in  // double-click or Return renames
+                renameAccount = ids.first.flatMap { id in store.accounts.first { $0.id == id } }
+            }
+            HStack(spacing: 0) {
                 Menu {
                     Button("Claude Code Account…") { addClaudeAccount() }
                     Button("Codex Account…") { addCodexAccount() }
                     Button("Remote Claude Account…") { showAddRemote = true }
                 } label: {
-                    Label("Add Account", systemImage: "plus")
+                    Image(systemName: "plus").frame(width: 20, height: 18)
                 }
+                .menuIndicator(.hidden)
                 .fixedSize()
+                .help("Add Account")
+                .accessibilityLabel("Add Account")
+                Divider().frame(height: 16)
+                Button { if let selected { remove(selected) } } label: {
+                    Image(systemName: "minus").frame(width: 20, height: 18)
+                }
+                .disabled(selected == nil)
+                .help("Remove Account")
+                .accessibilityLabel("Remove Account")
                 Spacer()
+            }
+            .buttonStyle(.borderless)
+            .menuStyle(.borderlessButton)
+            .padding(.top, 6)
+
+            if let account = selected {
+                accountOptions(account)
+            } else {
+                Text(store.accounts.isEmpty ? "No accounts yet. Click + to add one." : "Select an account to change its options.")
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
         .padding()
+        .onAppear { if selection == nil { selection = store.accounts.first?.id } }
         .sheet(isPresented: $showAddRemote) {
             RemoteCredentialsSheet(mode: .add, credentialStore: credentialStore)
         }
@@ -172,67 +200,74 @@ struct AccountsTab: View {
                 credentialStore: credentialStore
             )
         }
+        .sheet(item: $renameAccount) { RenameAccountSheet(account: $0) }
     }
 
-    @ViewBuilder
     private func accountRow(_ account: Account) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                if renameId == account.id {
-                    TextField("Name", text: $renameText)
-                        .textFieldStyle(.roundedBorder)
-                        .onSubmit { commitRename(account) }
-                    Button("Save") { commitRename(account) }.controlSize(.small)
-                } else {
-                    Text(account.name)
-                    if let email = store.accountEmails[account.id], email != account.name {
-                        Text(email).font(.caption).foregroundStyle(.secondary)
-                            .lineLimit(1).truncationMode(.middle)
+        HStack {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(account.name).lineLimit(1)
+                if let email = store.accountEmails[account.id], email != account.name {
+                    Text(email).font(.caption).foregroundStyle(.secondary)
+                        .lineLimit(1).truncationMode(.middle)
+                }
+            }
+            Spacer()
+            Text(isLocal(account) ? "Local" : "Remote")
+                .font(.caption).foregroundStyle(.secondary)
+            ProviderBadge(provider: account.provider)
+        }
+        .padding(.vertical, 2)
+        .tag(account.id)
+    }
+
+    /// Right-click menu: also the keyboard and VoiceOver path for reordering.
+    @ViewBuilder
+    private func accountMenu(_ account: Account) -> some View {
+        let i = store.accounts.firstIndex(where: { $0.id == account.id }) ?? 0
+        Button("Rename…") { renameAccount = account }
+        if case .remote = account.kind {
+            Button("Repaste Credentials…") { repasteAccount = account }
+        }
+        Divider()
+        Button("Move Up") { store.moveAccounts(fromOffsets: [i], toOffset: i - 1); store.save() }
+            .disabled(i == 0)
+        Button("Move Down") { store.moveAccounts(fromOffsets: [i], toOffset: i + 2); store.save() }
+            .disabled(i >= store.accounts.count - 1)
+        Divider()
+        Button("Remove", role: .destructive) { remove(account) }
+    }
+
+    private func accountOptions(_ account: Account) -> some View {
+        Form {
+            Section {
+                LabeledContent("Name") {
+                    HStack {
+                        Text(account.name).lineLimit(1).truncationMode(.middle)
+                        Button("Rename…") { renameAccount = account }
                     }
-                    ProviderBadge(provider: account.provider)
-                    Text(isLocal(account) ? "Local" : "Remote")
-                        .font(.caption2).foregroundStyle(.secondary)
-                    Button("Rename") { beginRename(account) }
-                        .controlSize(.mini)
-                        .buttonStyle(.plain)
-                        .foregroundStyle(.secondary)
                 }
-                Spacer()
-                Button("Remove \(account.name)", systemImage: "trash", role: .destructive) { remove(account) }
-                    .labelStyle(.iconOnly)
-                    .buttonStyle(.plain)
-                    .help("Remove account")
-            }
-            HStack(spacing: 12) {
-                Toggle("Desktop", isOn: binding(for: account, \.desktopAlerts))
-                    .toggleStyle(.checkbox)
-                Toggle("ntfy", isOn: binding(for: account, \.ntfyEnabled))
-                    .toggleStyle(.checkbox)
-                TextField("topic override", text: bindingOptional(for: account, \.ntfyTopicOverride))
-                    .textFieldStyle(.roundedBorder)
-                    .frame(width: 120)
+                Picker("Show in", selection: placementBinding(for: account)) {
+                    ForEach(Placement.allCases, id: \.self) { Text($0.label).tag($0) }
+                }
+                .pickerStyle(.menu)
+                Toggle("Desktop alerts", isOn: binding(for: account, \.desktopAlerts))
+                Toggle("ntfy alerts", isOn: binding(for: account, \.ntfyEnabled))
+                TextField("ntfy topic", text: bindingOptional(for: account, \.ntfyTopicOverride), prompt: Text("Default topic"))
                 if case .remote = account.kind {
-                    Button("Repaste…") { repasteAccount = account }.controlSize(.small)
+                    LabeledContent("Credentials") {
+                        Button("Repaste…") { repasteAccount = account }
+                    }
                 }
+            } footer: {
+                Text("Drag accounts, or right-click → Move Up / Move Down, to reorder; the menu bar and panel follow this order. Double-click an account to rename it.")
+                    .formFooter()
             }
-            .font(.caption)
-            // Own line: "Menu Bar and Popover" does not fit next to the checkboxes at 520 pt.
-            Picker("Show in", selection: placementBinding(for: account)) {
-                ForEach(Placement.allCases, id: \.self) { Text($0.label).tag($0) }
-            }
-            .pickerStyle(.menu)
-            .controlSize(.small)
-            .font(.caption)
-            .fixedSize()
         }
-        .padding(.vertical, 4)
-        .contextMenu {  // also reachable without dragging (keyboard, VoiceOver, controls that eat the drag)
-            let i = store.accounts.firstIndex(where: { $0.id == account.id }) ?? 0
-            Button("Move Up") { store.moveAccounts(fromOffsets: [i], toOffset: i - 1); store.save() }
-                .disabled(i == 0)
-            Button("Move Down") { store.moveAccounts(fromOffsets: [i], toOffset: i + 2); store.save() }
-                .disabled(i >= store.accounts.count - 1)
-        }
+        .formStyle(.grouped)
+        .scrollDisabled(true)
+        .scrollContentBackground(.hidden)  // one window background, not a second band under the list
+        .padding(.horizontal, -20)  // the grouped form insets itself; line it up with the list above
     }
 
     private func isLocal(_ account: Account) -> Bool {
@@ -269,20 +304,8 @@ struct AccountsTab: View {
         )
     }
 
-    private func beginRename(_ account: Account) {
-        renameId = account.id
-        renameText = account.name
-    }
-
-    private func commitRename(_ account: Account) {
-        if let idx = store.accounts.firstIndex(where: { $0.id == account.id }) {
-            store.accounts[idx].name = renameText
-            store.save()
-        }
-        renameId = nil
-    }
-
     private func remove(_ account: Account) {
+        if selection == account.id { selection = nil }
         store.accounts.removeAll { $0.id == account.id }
         store.states[account.id] = nil
         store.save()
@@ -344,6 +367,55 @@ struct AccountsTab: View {
         let labels = KeychainService.discoverLabels()
         let name = labels[service]?.email ?? url.lastPathComponent
         add(Account(name: name, kind: .local(configDirPath: path)))
+    }
+}
+
+// MARK: - Rename Account sheet
+
+/// A sheet, not an inline field in the list row: the row field opened without keyboard focus,
+/// so typing went to the list (1.12.0 bug). The sheet focuses its field on open.
+@MainActor
+struct RenameAccountSheet: View {
+    let account: Account
+    @Environment(\.dismiss) private var dismiss
+    @State private var name: String
+    @FocusState private var focused: Bool
+
+    init(account: Account) {
+        self.account = account
+        _name = State(initialValue: account.name)
+    }
+
+    private var canSave: Bool { !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Rename Account").font(.headline)
+            TextField("Name", text: $name)
+                .textFieldStyle(.roundedBorder)
+                .focused($focused)
+                .onSubmit(save)
+            if let email = AppStore.shared.accountEmails[account.id] {
+                Text("Signed in as \(email)").font(.caption).foregroundStyle(.secondary)
+            }
+            HStack {
+                Spacer()
+                Button("Cancel") { dismiss() }
+                    .keyboardShortcut(.cancelAction)
+                Button("Rename", action: save)
+                    .keyboardShortcut(.defaultAction)
+                    .disabled(!canSave)
+            }
+        }
+        .padding(20)
+        .frame(width: 340)
+        .task { focused = true }  // the sheet is not key during the first onAppear
+    }
+
+    private func save() {
+        guard canSave else { return }
+        AppStore.shared.renameAccount(account.id, to: name)
+        dismiss()
     }
 }
 

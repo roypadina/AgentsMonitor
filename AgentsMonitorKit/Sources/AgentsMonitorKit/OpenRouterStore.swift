@@ -311,6 +311,14 @@ extension AppStore {
         save()
     }
 
+    /// Trimmed; a blank name is ignored (the account keeps its old one). Saves.
+    public func renameAccount(_ id: UUID, to name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty, let index = accounts.firstIndex(where: { $0.id == id }) else { return }
+        accounts[index].name = trimmed
+        save()
+    }
+
     // MARK: - Placement-resolved lists (design §11)
 
     public var popoverAccounts: [Account] { accounts.filter { $0.placement.showsInPopover } }
