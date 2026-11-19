@@ -83,7 +83,7 @@ Claude Code and the status line in Codex:
 
 - **Claude, local** — any `CLAUDE_CONFIG_DIR` already logged in on this Mac (`~/.claude`,
   `~/.claude-work`, …). Auto-discovered straight from the keychain, and labeled using the
-  email/org in `~/.claude*/.claude.json`; that login email also shows next to the account name (unless the
+  email/org in `~/.claude*/.claude.json`; that login email (for `~/.claude`, also `~/.claude.json`) shows next to the account name (unless the
   name is the email) in the panel rows, the account card and Settings → Accounts. Tokens are read fresh from the keychain on every poll
   and **never refreshed by this app** — refreshing would burn Claude Code's single-use refresh
   token and force that profile into `/login`.
@@ -272,7 +272,9 @@ every request (±1–2s observed) — exact comparison caused an alert on every 
 - **What it reads.** Your local Claude Code login (the Keychain items Claude Code created) and your
   local Codex login (`<CODEX_HOME>/auth.json`), **read-only**, only to ask each provider's own
   usage endpoint how much of your limits you have used. It never refreshes, rewrites or deletes
-  those logins.
+  those logins. It also reads the login email (`oauthAccount.emailAddress`) from each local Claude
+  profile's `.claude.json` (`~/.claude.json` for `~/.claude`) to show it next to the account name;
+  it is shown in the app only and never sent anywhere.
 - **What leaves your Mac.** Only those usage requests: `api.anthropic.com` (Claude) and
   `chatgpt.com` (Codex), each carrying that account's own access token, and `openrouter.ai` for the OpenRouter keys you add. If you turn on **ntfy**,
   alert text (account name, limit, percentage) goes to the ntfy server and topic you configure.

@@ -1209,4 +1209,15 @@ final class PollErrorTests: XCTestCase {
             .write(to: dir.appendingPathComponent(".claude.json"))
         XCTAssertEqual(KeychainService.claudeEmail(configDir: dir.path, home: dir.path), "a@b.com")
     }
+
+    func testClaudeEmailFallsBackToHomeFileForDefaultDir() throws {
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let dir = home.appendingPathComponent(".claude")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: home) }
+        try Data(#"{"oauthAccount":{"emailAddress":"c@d.com"}}"#.utf8)
+            .write(to: home.appendingPathComponent(".claude.json"))
+        XCTAssertEqual(KeychainService.claudeEmail(configDir: dir.path, home: home.path), "c@d.com")
+        XCTAssertNil(KeychainService.claudeEmail(configDir: home.appendingPathComponent(".claude-x").path, home: home.path))
+    }
 }
