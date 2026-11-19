@@ -143,9 +143,11 @@ struct AccountsTab: View {
             List {
                 ForEach(store.accounts) { account in
                     accountRow(account)
-                }
+                }                .onMove { store.moveAccounts(fromOffsets: $0, toOffset: $1); store.save() }
             }
             .listStyle(.inset)
+            Text("Drag rows to reorder; the menu bar and panel follow this order.")
+                .font(.caption).foregroundStyle(.secondary)
 
             HStack {
                 Menu {

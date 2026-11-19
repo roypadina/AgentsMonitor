@@ -81,4 +81,13 @@ final class PlacementTests: XCTestCase {
         XCTAssertEqual(shortCountdown(to: now.addingTimeInterval(59), now: now), "0m")
         XCTAssertEqual(shortCountdown(to: now.addingTimeInterval(3 * 3600 + 5 * 60), now: now), "3h 5m")
     }
+
+    @MainActor func testMoveAccounts() {
+        let store = AppStore()
+        store.accounts = ["a", "b", "c"].map { Account(name: $0, kind: .remote) }
+        store.moveAccounts(fromOffsets: IndexSet(integer: 0), toOffset: 3)
+        XCTAssertEqual(store.accounts.map(\.name), ["b", "c", "a"])
+        store.moveAccounts(fromOffsets: IndexSet(integer: 2), toOffset: 0)
+        XCTAssertEqual(store.accounts.map(\.name), ["a", "b", "c"])
+    }
 }

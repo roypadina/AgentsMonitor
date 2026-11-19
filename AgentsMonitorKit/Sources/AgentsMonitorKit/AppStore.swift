@@ -237,6 +237,15 @@ public final class AppStore {
         log.info("migrated \(migrated.count) key(s) from \(legacyDefaultsDomain, privacy: .public): \(migrated.joined(separator: ","), privacy: .public)")
     }
 
+    /// Reorders `accounts` (same semantics as `Array.move(fromOffsets:toOffset:)`); caller saves.
+    public func moveAccounts(fromOffsets offsets: IndexSet, toOffset destination: Int) {
+        let moving = offsets.map { accounts[$0] }
+        var rest = accounts
+        for index in offsets.reversed() { rest.remove(at: index) }
+        rest.insert(contentsOf: moving, at: destination - offsets.filter { $0 < destination }.count)
+        accounts = rest
+    }
+
     public func save() {
         // Settings edits must reach the live engine — otherwise a threshold or toggle change
         // only takes effect after a relaunch. Every Settings control routes through save().

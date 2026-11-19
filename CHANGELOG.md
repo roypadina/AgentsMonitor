@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.12.0] - 2026-11-19
+
+### Added
+- Drag accounts to reorder them in Settings → Accounts; the menu bar and panel follow that order.
+
+### Changed
+- The support card now says since when its usage checks were counted ("N usage checks since <date>").
+
 ## [1.11.0] - 2026-11-19
 
 ### Added
