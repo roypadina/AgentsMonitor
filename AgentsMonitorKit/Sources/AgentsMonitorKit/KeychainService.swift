@@ -88,6 +88,19 @@ public enum KeychainService {
         return labels
     }
 
+    /// Login email of a local Claude profile: `<configDir>/.claude.json` → `oauthAccount.emailAddress`
+    /// (the default `~/.claude` may keep it in `~/.claude.json` instead). Plain JSON, no secrets.
+    public static func claudeEmail(configDir: String, home: String = NSHomeDirectory()) -> String? {
+        var files = ["\(configDir)/.claude.json"]
+        if normalizePath(configDir) == normalizePath("\(home)/.claude") { files.append("\(home)/.claude.json") }
+        for file in files {
+            if let data = try? Data(contentsOf: URL(fileURLWithPath: file)),
+               let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+               let email = (root["oauthAccount"] as? [String: Any])?["emailAddress"] as? String { return email }
+        }
+        return nil
+    }
+
     /// Process-wide "never block on a keychain consent prompt" switch. Deprecated API, but it is
     /// the only one that turns the ACL consent dialog into a clean `errSecAuthFailed` (verified
     /// live on macOS 26.6) — without it a read from this ad-hoc-signed app hangs on a modal

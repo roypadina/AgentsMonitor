@@ -182,6 +182,10 @@ struct AccountsTab: View {
                     Button("Save") { commitRename(account) }.controlSize(.small)
                 } else {
                     Text(account.name)
+                    if let email = store.accountEmails[account.id], email != account.name {
+                        Text(email).font(.caption).foregroundStyle(.secondary)
+                            .lineLimit(1).truncationMode(.middle)
+                    }
                     ProviderBadge(provider: account.provider)
                     Text(isLocal(account) ? "Local" : "Remote")
                         .font(.caption2).foregroundStyle(.secondary)

@@ -36,7 +36,7 @@ always plain text/icon. Color lives in the popover and in toasts instead.
 ## Popover
 
 Click the menu bar icon to open the popover: one compact row per account. A row is the account
-name, its provider badge and up to three **meter chips**: a short tag, a small bar and the percent
+name, the login email (local Claude accounts), its provider badge and up to three **meter chips**: a short tag, a small bar and the percent
 (`5h` = Session, `7d` = Week, a model initial such as `F` = Week · Fable, `CR` = Code Review for
 Codex). A **second line** appears only when the account needs attention: a login problem, a window
 at warning or critical, a blocked window, or a "full in ~Xh at this pace" warning. A healthy
@@ -103,6 +103,9 @@ A local account is any `CLAUDE_CONFIG_DIR` that's already logged in to Claude Co
 - **Naming:** taken from `oauthAccount.emailAddress` (or `organizationName`) in that profile's
   `~/.claude*/.claude.json`. If no label is found, it falls back to the directory name. Rename
   any account from Settings or from the popover.
+- **Login email:** that same `oauthAccount.emailAddress` (for `~/.claude`, also looked up in
+  `~/.claude.json`) shows next to the account name in the popover row, the account card and
+  Settings → Accounts whenever the name is something else (after a rename).
 - **Tokens are read fresh from the keychain on every poll and never refreshed by this app.**
   Claude Code owns the refresh token for a local account; if Agents Monitor refreshed it, Claude
   Code's own next refresh would fail with `invalid_grant` and force that profile to `/login`.

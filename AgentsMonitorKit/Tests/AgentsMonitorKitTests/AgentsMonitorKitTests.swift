@@ -1199,4 +1199,25 @@ final class PollErrorTests: XCTestCase {
         XCTAssertTrue(engine.evaluate(account: account, state: .stale(snapshot, error: "x")).isEmpty)
         XCTAssertFalse(engine.evaluate(account: account, state: .ok(snapshot)).isEmpty)
     }
+
+    func testClaudeEmailReadsOauthAccount() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        XCTAssertNil(KeychainService.claudeEmail(configDir: dir.path, home: dir.path))
+        try Data(#"{"oauthAccount":{"emailAddress":"a@b.com"}}"#.utf8)
+            .write(to: dir.appendingPathComponent(".claude.json"))
+        XCTAssertEqual(KeychainService.claudeEmail(configDir: dir.path, home: dir.path), "a@b.com")
+    }
+
+    func testClaudeEmailFallsBackToHomeFileForDefaultDir() throws {
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let dir = home.appendingPathComponent(".claude")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: home) }
+        try Data(#"{"oauthAccount":{"emailAddress":"c@d.com"}}"#.utf8)
+            .write(to: home.appendingPathComponent(".claude.json"))
+        XCTAssertEqual(KeychainService.claudeEmail(configDir: dir.path, home: home.path), "c@d.com")
+        XCTAssertNil(KeychainService.claudeEmail(configDir: home.appendingPathComponent(".claude-x").path, home: home.path))
+    }
 }

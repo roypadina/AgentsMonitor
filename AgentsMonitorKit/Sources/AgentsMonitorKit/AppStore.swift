@@ -69,6 +69,8 @@ public final class AppStore {
     public var spendRules: [SpendRule] = []
     /// Popover rows shown as full cards; memory only.
     public var expandedAccounts: Set<UUID> = []
+    /// Login email per local Claude account, re-read each poll (views must not hit the disk).
+    public var accountEmails: [UUID: String] = [:]
     var openRouterSamples: [String: [OpenRouterSample]] = [:]   // last 3 days, per key, oldest first
     var lastOpenRouterSnapshot: OpenRouterSnapshot?
     let openRouterClient = OpenRouterClient()
@@ -275,6 +277,12 @@ public final class AppStore {
     private func poll() async {
         isRefreshing = true
         defer { isRefreshing = false; lastRefresh = Date() }
+
+        var emails: [UUID: String] = [:]
+        for case let account in accounts where account.provider == .claude {
+            if case .local(let path) = account.kind { emails[account.id] = KeychainService.claudeEmail(configDir: path) }
+        }
+        accountEmails = emails
 
         let now = Date()
         var toFetch: [Account] = []

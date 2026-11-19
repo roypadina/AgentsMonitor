@@ -61,6 +61,10 @@ struct AccountRow: View {
                 .lineLimit(1)
                 .frame(width: 90, alignment: .leading)
                 .help(account.name)
+            if let email = store.accountEmails[account.id], email != account.name {
+                Text(email).font(.caption2).foregroundStyle(.secondary)
+                    .lineLimit(1).truncationMode(.middle).help(email)
+            }
             ProviderBadge(provider: account.provider,
                           style: store.settings.providerBadge == .hidden ? .hidden : .icon)
             if case .stale = state {
