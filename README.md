@@ -81,6 +81,9 @@ Claude Code and the status line in Codex:
 
 ## Accounts
 
+Drag rows in Settings → Accounts (or right-click → **Move Up** / **Move Down**) to set the order the
+menu bar and popover use.
+
 - **Claude, local** — any `CLAUDE_CONFIG_DIR` already logged in on this Mac (`~/.claude`,
   `~/.claude-work`, …). Auto-discovered straight from the keychain, and labeled using the
   email/org in `~/.claude*/.claude.json`; that login email (for `~/.claude`, also `~/.claude.json`) shows next to the account name (unless the

@@ -113,6 +113,7 @@ final class SupportPrompt {
         guard !showing else { return }
         showing = true
         SupportPanel.show(usageChecks: AppStore.shared.usageChecks,
+                          since: UserDefaults.standard.object(forKey: Self.installDateKey) as? Date,
                           alertsSent: UserDefaults.standard.integer(forKey: Self.alertsSentKey),
                           accounts: AppStore.shared.accounts.count,
                           onAnswer: { [weak self] answer in self?.answer(answer, record: record) },
@@ -216,7 +217,7 @@ enum SupportPanel {
     /// Transparent room around the card: shadow on top/right, coffee burst on left/bottom.
     static let insets = EdgeInsets(top: 12, leading: 48, bottom: 48, trailing: 12)
 
-    static func show(usageChecks: Int, alertsSent: Int, accounts: Int,
+    static func show(usageChecks: Int, since: Date?, alertsSent: Int, accounts: Int,
                      onAnswer: @escaping (SupportPromptState.Answer) -> Void,
                      onClosed: @escaping @MainActor () -> Void) {
         guard panel == nil else { return }
@@ -233,7 +234,7 @@ enum SupportPanel {
         p.isOpaque = false
         p.hidesOnDeactivate = false
         p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
-        let host = NSHostingView(rootView: SupportPromptView(usageChecks: usageChecks, alertsSent: alertsSent, accounts: accounts))
+        let host = NSHostingView(rootView: SupportPromptView(usageChecks: usageChecks, since: since, alertsSent: alertsSent, accounts: accounts))
         p.contentView = host
         let size = host.fittingSize
         let visible = screen.visibleFrame  // card lands 12pt in from the top-right corner (= the insets)
@@ -244,7 +245,7 @@ enum SupportPanel {
         self.onAnswer = onAnswer
         self.onClosed = onClosed
         AccessibilityNotification.Announcement(
-            "Agents Monitor: \(usageChecks.formatted()) usage checks, every limit watched for you. Tip a coffee on Ko-fi? Options are in the Agents Monitor menu: right-click its icon."
+            "Agents Monitor: \(SupportPromptView.checks(usageChecks, since: since)), every limit watched for you. Tip a coffee on Ko-fi? Options are in the Agents Monitor menu: right-click its icon."
         ).post()
         Task {  // unanswered 5 min, or 2 min without input (walked off): fade away as "Ask me in 2 weeks"
             for _ in 0..<20 {
@@ -319,6 +320,7 @@ enum SupportPanel {
 /// The receipt: prints out of a slot, itemises what Agents Monitor did, ends in "TIP? ☕ optional".
 struct SupportPromptView: View {
     let usageChecks: Int
+    var since: Date? = nil  // when counting started (supportInstallDate): the update, not the install
     let alertsSent: Int
     let accounts: Int
     var settled = false  // start fully printed, no entry animation (screenshot renders)
@@ -338,7 +340,11 @@ struct SupportPromptView: View {
 
     private static let width: CGFloat = 340
     private static let radius: CGFloat = 18
-    private var title: String { "\(usageChecks.formatted()) usage checks.\nEvery limit watched for you. 🎯" }
+    private var title: String { "\(Self.checks(usageChecks, since: since)).\nEvery limit watched for you. 🎯" }
+    /// "N usage checks since <date>": counting started at the update that added the card, not at install.
+    static func checks(_ n: Int, since: Date?) -> String {
+        "\(n.formatted()) usage checks" + (since.map { " since \($0.formatted(date: .abbreviated, time: .omitted))" } ?? "")
+    }
 
     var body: some View {
         card

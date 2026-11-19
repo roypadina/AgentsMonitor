@@ -144,8 +144,11 @@ struct AccountsTab: View {
                 ForEach(store.accounts) { account in
                     accountRow(account)
                 }
+                .onMove { store.moveAccounts(fromOffsets: $0, toOffset: $1); store.save() }
             }
             .listStyle(.inset)
+            Text("Drag rows (or right-click → Move Up / Move Down) to reorder; the menu bar and panel follow this order.")
+                .font(.caption).foregroundStyle(.secondary)
 
             HStack {
                 Menu {
@@ -223,6 +226,13 @@ struct AccountsTab: View {
             .fixedSize()
         }
         .padding(.vertical, 4)
+        .contextMenu {  // also reachable without dragging (keyboard, VoiceOver, controls that eat the drag)
+            let i = store.accounts.firstIndex(where: { $0.id == account.id }) ?? 0
+            Button("Move Up") { store.moveAccounts(fromOffsets: [i], toOffset: i - 1); store.save() }
+                .disabled(i == 0)
+            Button("Move Down") { store.moveAccounts(fromOffsets: [i], toOffset: i + 2); store.save() }
+                .disabled(i >= store.accounts.count - 1)
+        }
     }
 
     private func isLocal(_ account: Account) -> Bool {
