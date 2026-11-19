@@ -199,7 +199,7 @@ private struct AccountCard: View {
     private func header(back: Bool) -> some View {
         HStack(spacing: 6) {
             Text(account.name).font(.headline)
-            if let email = store.accountEmails[account.id] {
+            if let email = store.accountEmails[account.id], email != account.name {
                 Text(email).font(.caption).foregroundStyle(.secondary)
                     .lineLimit(1).truncationMode(.middle).help(email)
             }

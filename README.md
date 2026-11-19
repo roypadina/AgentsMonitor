@@ -83,7 +83,8 @@ Claude Code and the status line in Codex:
 
 - **Claude, local** — any `CLAUDE_CONFIG_DIR` already logged in on this Mac (`~/.claude`,
   `~/.claude-work`, …). Auto-discovered straight from the keychain, and labeled using the
-  email/org in `~/.claude*/.claude.json`. Tokens are read fresh from the keychain on every poll
+  email/org in `~/.claude*/.claude.json`; that login email also shows next to the account name (unless the
+  name is the email) in the panel rows, the account card and Settings → Accounts. Tokens are read fresh from the keychain on every poll
   and **never refreshed by this app** — refreshing would burn Claude Code's single-use refresh
   token and force that profile into `/login`.
 - **Codex, local** — any `CODEX_HOME` signed in with a ChatGPT account (`~/.codex`,
