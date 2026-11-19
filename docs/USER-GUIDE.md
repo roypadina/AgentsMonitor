@@ -106,6 +106,8 @@ A local account is any `CLAUDE_CONFIG_DIR` that's already logged in to Claude Co
 - **Login email:** that same `oauthAccount.emailAddress` (for `~/.claude`, also looked up in
   `~/.claude.json`) shows next to the account name in the popover row, the account card and
   Settings → Accounts whenever the name is something else (after a rename).
+- **Order:** drag rows in Settings → Accounts (or right-click → **Move Up** / **Move Down**); the
+  menu bar and popover follow that order.
 - **Tokens are read fresh from the keychain on every poll and never refreshed by this app.**
   Claude Code owns the refresh token for a local account; if Agents Monitor refreshed it, Claude
   Code's own next refresh would fail with `invalid_grant` and force that profile to `/login`.
