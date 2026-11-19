@@ -199,6 +199,10 @@ private struct AccountCard: View {
     private func header(back: Bool) -> some View {
         HStack(spacing: 6) {
             Text(account.name).font(.headline)
+            if let email = store.accountEmails[account.id] {
+                Text(email).font(.caption).foregroundStyle(.secondary)
+                    .lineLimit(1).truncationMode(.middle).help(email)
+            }
             ProviderBadge(provider: account.provider)
             Text(isLocal ? "Local" : "Remote")
                 .font(.caption2)

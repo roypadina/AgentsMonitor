@@ -1199,4 +1199,14 @@ final class PollErrorTests: XCTestCase {
         XCTAssertTrue(engine.evaluate(account: account, state: .stale(snapshot, error: "x")).isEmpty)
         XCTAssertFalse(engine.evaluate(account: account, state: .ok(snapshot)).isEmpty)
     }
+
+    func testClaudeEmailReadsOauthAccount() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        XCTAssertNil(KeychainService.claudeEmail(configDir: dir.path, home: dir.path))
+        try Data(#"{"oauthAccount":{"emailAddress":"a@b.com"}}"#.utf8)
+            .write(to: dir.appendingPathComponent(".claude.json"))
+        XCTAssertEqual(KeychainService.claudeEmail(configDir: dir.path, home: dir.path), "a@b.com")
+    }
 }
