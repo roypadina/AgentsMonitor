@@ -254,8 +254,6 @@ struct AccountsTab: View {
                 Toggle("Mac alerts", isOn: binding(for: account, \.desktopAlerts))
                     .help("Desktop notification and toast for this account")
                 Toggle("ntfy alerts", isOn: binding(for: account, \.ntfyEnabled))
-                    .help(store.settings.ntfyDefaultTopic.isEmpty && (account.ntfyTopicOverride ?? "").isEmpty
-                          ? "No ntfy topic set: add a default topic in Alerts, or a topic below" : "")
                 TextField("ntfy topic", text: bindingOptional(for: account, \.ntfyTopicOverride), prompt: Text("Default topic"))
                 if case .remote = account.kind {
                     LabeledContent("Credentials") {
@@ -263,8 +261,13 @@ struct AccountsTab: View {
                     }
                 }
             } footer: {
-                Text("Drag accounts, or right-click → Move Up / Move Down, to reorder; the menu bar and panel follow this order. Double-click an account to rename it.")
-                    .formFooter()
+                VStack(alignment: .leading, spacing: 4) {
+                    if account.ntfyEnabled, store.settings.ntfyDefaultTopic.isEmpty, (account.ntfyTopicOverride ?? "").isEmpty {
+                        Text("ntfy alerts need a topic: set one here, or a default topic in Alerts.")
+                    }
+                    Text("Drag accounts, or right-click → Move Up / Move Down, to reorder; the menu bar and panel follow this order. Double-click an account to rename it.")
+                }
+                .formFooter()
             }
         }
         .formStyle(.grouped)
@@ -438,7 +441,9 @@ struct AlertsTab: View {
                 Toggle("Warning alerts", isOn: bindingBool(\.warningAlerts)).disabled(!store.settings.alertsEnabled)
                 Toggle("Critical alerts", isOn: bindingBool(\.criticalAlerts)).disabled(!store.settings.alertsEnabled)
             } footer: {
-                Text("Alerts off silences every channel for every account. Pick Mac and ntfy alerts per account in the Accounts tab.")
+                Text(store.settings.alertsEnabled
+                     ? "Pick Mac and ntfy alerts per account in the Accounts tab."
+                     : "Alerts are off: nothing goes out on any channel, for any account. Turn Alerts on to use the switches here and in Extra usage.")
                     .formFooter()
             }
             Section("Thresholds") {

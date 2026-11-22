@@ -276,7 +276,7 @@ struct OpenRouterTab: View {
         } header: {
             Text("Spend Alerts")
         } footer: {
-            Text("Toast and sound follow Settings → General; ntfy uses the server in Settings → Alerts.")
+            Text("Desktop also covers the toast; toast and sound follow Settings → General; ntfy uses the server in Settings → Alerts.")
                 .formFooter()
         }
     }

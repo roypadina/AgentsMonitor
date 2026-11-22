@@ -32,6 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCent
         let store = AppStore.shared
         store.onAlerts = { alerts, account in
             let allowed = alerts.filter(store.settings.allows)
+            guard !allowed.isEmpty else { return }  // a silenced alert must not touch the support card
             SupportPrompt.shared.alerted(sent: Notifier.deliver(allowed, account: account))
         }
         store.bootstrap()

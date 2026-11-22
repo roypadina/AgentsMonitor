@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Settings → Alerts: an **Alerts** master switch (off silences every channel for every account) and separate **Warning alerts** / **Critical alerts** switches.
 
 ### Changed
-- Settings → Accounts: "Desktop alerts" is now **Mac alerts** and also governs the toast, so each account can have Mac alerts, ntfy alerts, both or none. Before, the toast showed for every account even with desktop alerts off.
+- Settings → Accounts: "Desktop alerts" is now **Mac alerts** and also governs the toast, so each account can have Mac alerts, ntfy alerts, both or none. Before, the toast showed for every account even with desktop alerts off. The same goes for the OpenRouter **Desktop** delivery switch.
 
 ## [1.13.0] - 2026-11-19
 

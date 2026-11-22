@@ -65,7 +65,7 @@ final class SettingsWindow {
             // Alerts needs ~670, General ~760, OpenRouter ~800 with six keys showing and four rules (all fit below).
             add(tabs, "Accounts", "person.2", AccountsTab(), height: 500)
             add(tabs, "OpenRouter", "arrow.triangle.branch", OpenRouterTab(), height: 820)
-            add(tabs, "Alerts", "bell", AlertsTab(), height: 680)
+            add(tabs, "Alerts", "bell", AlertsTab(), height: 860)
             add(tabs, "General", "gearshape", GeneralTab(), height: 760)
             add(tabs, "About", "info.circle", AboutTab(), height: 300)
             if let last = UserDefaults.standard.string(forKey: SettingsTabs.lastTabKey),  // reopen on the last pane (SET-3)
