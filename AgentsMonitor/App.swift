@@ -30,7 +30,10 @@ struct AgentsMonitorApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate, UNUserNotificationCenterDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         let store = AppStore.shared
-        store.onAlerts = { SupportPrompt.shared.alerted(sent: Notifier.deliver($0, account: $1)) }
+        store.onAlerts = { alerts, account in
+            let allowed = alerts.filter(store.settings.allows)
+            SupportPrompt.shared.alerted(sent: Notifier.deliver(allowed, account: account))
+        }
         store.bootstrap()
         LoginItem.ensureRegistered()
         _ = Updates.controller  // starts the daily update check

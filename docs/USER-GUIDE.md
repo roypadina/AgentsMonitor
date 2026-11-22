@@ -321,7 +321,7 @@ debounce working as intended.
 
 Each toggled per account in Settings → Accounts:
 
-- **Desktop** — a standard `UNUserNotificationCenter` banner with sound. Requires the
+- **Desktop** (part of **Mac alerts**) — a standard `UNUserNotificationCenter` banner with sound. Requires the
   notification permission granted on first launch; if denied, these are silently dropped (check
   Settings → Alerts for the current authorization status).
 - **ntfy** — a JSON `POST` to your configured server (default `https://ntfy.sh`) and topic.
@@ -329,7 +329,12 @@ Each toggled per account in Settings → Accounts:
   Settings → Accounts. See [ntfy setup from zero](#ntfy-setup-from-zero) below if you've never
   used it.
 - **Toast** — an in-app floating panel, top-right, slide-and-fade with sound, shown regardless
-  of which app is frontmost. Global on/off in Settings → General, not per-account.
+  of which app is frontmost. Shown for accounts with **Mac alerts** on; global on/off in
+  Settings → General.
+
+The account's **Mac alerts** switch covers Desktop + Toast, **ntfy alerts** covers ntfy, so an
+account can have both, only one, or none. Settings → Alerts adds a master **Alerts** switch and
+**Warning alerts** / **Critical alerts** switches that apply to every account (and OpenRouter rules).
 
 <img src="screenshots/toasts.png" alt="Two Agents Monitor toast alerts stacked top-right" width="420">
 
@@ -343,7 +348,7 @@ Agents Monitor again from Applications or Raycast brings it up. All changes are 
 **−** under it: **+** is the **Add Account** menu (**Claude Code Account…** / **Codex Account…** —
 folder pickers validated against a real keychain entry — and **Remote Claude Account…**, a paste
 sheet), **−** removes the selected account. Below the list are the selected account's options: **Name**
-with **Rename…**, the **Show in** pop-up ([placement](#placement)), **Desktop alerts**, **ntfy alerts**,
+with **Rename…**, the **Show in** pop-up ([placement](#placement)), **Mac alerts** (desktop + toast), **ntfy alerts**,
 the ntfy topic override and, for a remote account, **Credentials → Repaste…**. Rename opens a small
 sheet (double-click an account, or right-click → **Rename…**); Return saves, an empty name is ignored.
 Right-click an account for **Rename…**, **Repaste Credentials…** (remote), **Move Up** / **Move Down**
@@ -362,6 +367,9 @@ and **Remove**.
   rule sheet. **Delivery**: Desktop, ntfy and a topic override for OpenRouter alerts.
 
 **Alerts:**
+- **Alerts** — master switch; off silences every channel for every account.
+- **Warning alerts** / **Critical alerts** — turn one level off for all accounts. Extra-usage
+  alerts have their own switch.
 - **Warning / Critical thresholds** — steppers, 1–100%, warning is always kept below critical.
 - **ntfy server** and **default topic** — used by any account with ntfy enabled and no
   per-account override.

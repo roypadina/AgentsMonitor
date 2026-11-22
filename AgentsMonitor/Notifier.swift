@@ -17,7 +17,9 @@ enum Notifier {
         var sent = 0
 
         for alert in alerts {
-            var out = account.desktopAlerts || settings.toastEnabled
+            // "Mac alerts" for an account = desktop notification + toast; off silences both.
+            let toast = account.desktopAlerts && settings.toastEnabled
+            var out = account.desktopAlerts
             if account.desktopAlerts {
                 postDesktopNotification(alert)
             }
@@ -30,7 +32,7 @@ enum Notifier {
                     out = true
                 }
             }
-            if settings.toastEnabled {
+            if toast {
                 ToastPanel.show(alert)
             }
             if out { sent += 1 }

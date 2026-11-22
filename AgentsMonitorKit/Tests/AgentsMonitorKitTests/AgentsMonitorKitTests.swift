@@ -413,6 +413,21 @@ final class SettingsCodableTests: XCTestCase {
         XCTAssertTrue(decoded.extraUsageAlerts, "new field falls back to its default")
     }
 
+    func testAlertSwitchesFilterByLevel() {
+        func alert(_ key: String, _ level: AlertLevel) -> Alert {
+            Alert(accountId: UUID(), accountName: "a", key: key, title: "t", body: "b", level: level)
+        }
+        var s = Settings()
+        XCTAssertTrue(s.allows(alert("five_hour", .warning)))
+        s.warningAlerts = false
+        XCTAssertFalse(s.allows(alert("five_hour", .warning)))
+        XCTAssertTrue(s.allows(alert("five_hour", .critical)))
+        XCTAssertTrue(s.allows(alert("spendBurst", .warning)), "extra usage has its own switch")
+        s.alertsEnabled = false
+        XCTAssertFalse(s.allows(alert("five_hour", .critical)))
+        XCTAssertFalse(s.allows(alert("spendBurst", .warning)))
+    }
+
     func testEmptyObjectDecodesToDefaults() throws {
         let decoded = try JSONDecoder().decode(Settings.self, from: "{}".data(using: .utf8)!)
         XCTAssertEqual(decoded, Settings())
