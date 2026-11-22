@@ -62,7 +62,7 @@ final class SettingsWindow {
             let tabs = SettingsTabs()
             tabs.tabStyle = .toolbar
             // Each pane gets its own height (SET-8): grouped forms have no intrinsic height. Measured offscreen:
-            // Alerts needs ~670, General ~760, OpenRouter ~800 with six keys showing and four rules (all fit below).
+            // Alerts needs ~850 (1.14.0 switches section +178), General ~760, OpenRouter ~800 with six keys showing and four rules (all fit below).
             add(tabs, "Accounts", "person.2", AccountsTab(), height: 500)
             add(tabs, "OpenRouter", "arrow.triangle.branch", OpenRouterTab(), height: 820)
             add(tabs, "Alerts", "bell", AlertsTab(), height: 860)
