@@ -15,6 +15,9 @@ public struct Settings: Codable, Equatable, Sendable {
     public var toastEnabled: Bool = true
     public var soundEnabled: Bool = true
     public var extraUsageAlerts: Bool = true   // notify when paid extra usage starts moving
+    public var alertsEnabled: Bool = true      // master switch: off = no alert on any channel
+    public var warningAlerts: Bool = true
+    public var criticalAlerts: Bool = true
     public var providerBadge: ProviderBadgeStyle = .iconAndName
     public var providerColors: Bool = true     // tint the provider badge and account name
     public var openRouter = OpenRouterSettings()
@@ -39,9 +42,25 @@ public struct Settings: Codable, Equatable, Sendable {
         toastEnabled = try c.decodeIfPresent(Bool.self, forKey: .toastEnabled) ?? d.toastEnabled
         soundEnabled = try c.decodeIfPresent(Bool.self, forKey: .soundEnabled) ?? d.soundEnabled
         extraUsageAlerts = try c.decodeIfPresent(Bool.self, forKey: .extraUsageAlerts) ?? d.extraUsageAlerts
+        alertsEnabled = try c.decodeIfPresent(Bool.self, forKey: .alertsEnabled) ?? d.alertsEnabled
+        warningAlerts = try c.decodeIfPresent(Bool.self, forKey: .warningAlerts) ?? d.warningAlerts
+        criticalAlerts = try c.decodeIfPresent(Bool.self, forKey: .criticalAlerts) ?? d.criticalAlerts
         providerBadge = try c.decodeIfPresent(ProviderBadgeStyle.self, forKey: .providerBadge) ?? d.providerBadge
         providerColors = try c.decodeIfPresent(Bool.self, forKey: .providerColors) ?? d.providerColors
         openRouter = try c.decodeIfPresent(OpenRouterSettings.self, forKey: .openRouter) ?? d.openRouter
+    }
+
+    /// Whether a fired alert may go out. Filtered at delivery, not in AlertEngine, so de-dupe
+    /// memory keeps tracking and re-enabling a level never floods old alerts.
+    /// The extra-usage alert has its own switch (`extraUsageAlerts`), so the level switches skip it.
+    public func allows(_ alert: Alert) -> Bool {
+        guard alertsEnabled else { return false }
+        if alert.key == "spendBurst" { return true }
+        switch alert.level {
+        case .critical: return criticalAlerts
+        case .warning: return warningAlerts
+        case .none: return true
+        }
     }
 }
 

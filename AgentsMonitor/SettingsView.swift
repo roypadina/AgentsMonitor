@@ -251,7 +251,8 @@ struct AccountsTab: View {
                     ForEach(Placement.allCases, id: \.self) { Text($0.label).tag($0) }
                 }
                 .pickerStyle(.menu)
-                Toggle("Desktop alerts", isOn: binding(for: account, \.desktopAlerts))
+                Toggle("Mac alerts", isOn: binding(for: account, \.desktopAlerts))
+                    .help("Desktop notification and toast for this account")
                 Toggle("ntfy alerts", isOn: binding(for: account, \.ntfyEnabled))
                 TextField("ntfy topic", text: bindingOptional(for: account, \.ntfyTopicOverride), prompt: Text("Default topic"))
                 if case .remote = account.kind {
@@ -260,8 +261,13 @@ struct AccountsTab: View {
                     }
                 }
             } footer: {
-                Text("Drag accounts, or right-click → Move Up / Move Down, to reorder; the menu bar and panel follow this order. Double-click an account to rename it.")
-                    .formFooter()
+                VStack(alignment: .leading, spacing: 4) {
+                    if account.ntfyEnabled, store.settings.ntfyDefaultTopic.isEmpty, (account.ntfyTopicOverride ?? "").isEmpty {
+                        Text("ntfy alerts need a topic: set one here, or a default topic in Alerts.")
+                    }
+                    Text("Drag accounts, or right-click → Move Up / Move Down, to reorder; the menu bar and panel follow this order. Double-click an account to rename it.")
+                }
+                .formFooter()
             }
         }
         .formStyle(.grouped)
@@ -430,12 +436,22 @@ struct AlertsTab: View {
 
     var body: some View {
         Form {
+            Section {
+                Toggle("Alerts", isOn: bindingBool(\.alertsEnabled))
+                Toggle("Warning alerts", isOn: bindingBool(\.warningAlerts)).disabled(!store.settings.alertsEnabled)
+                Toggle("Critical alerts", isOn: bindingBool(\.criticalAlerts)).disabled(!store.settings.alertsEnabled)
+            } footer: {
+                Text(store.settings.alertsEnabled
+                     ? "Pick Mac and ntfy alerts per account in the Accounts tab."
+                     : "Alerts are off: nothing goes out on any channel, for any account. Turn Alerts on to use the switches here and in Extra usage.")
+                    .formFooter()
+            }
             Section("Thresholds") {
                 Stepper("Warning: \(store.settings.thresholds.warning)%", value: warningBinding, in: 1...99)
                 Stepper("Critical: \(store.settings.thresholds.critical)%", value: criticalBinding, in: 1...100)
             }
             Section("Extra usage") {
-                Toggle("Notify when extra usage starts", isOn: extraUsageBinding)
+                Toggle("Notify when extra usage starts", isOn: extraUsageBinding).disabled(!store.settings.alertsEnabled)
                 Text("Alerts the moment paid usage starts being consumed, then stays quiet until spending pauses for 30 minutes.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -499,6 +515,13 @@ struct AlertsTab: View {
                 store.settings.thresholds.critical = max(newValue, store.settings.thresholds.warning + 1)
                 store.save()
             }
+        )
+    }
+
+    private func bindingBool(_ keyPath: WritableKeyPath<AgentsMonitorKit.Settings, Bool>) -> Binding<Bool> {
+        Binding(
+            get: { store.settings[keyPath: keyPath] },
+            set: { store.settings[keyPath: keyPath] = $0; store.save() }
         )
     }
 
