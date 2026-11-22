@@ -53,10 +53,12 @@ final class SupportPrompt {
 
     /// An alert just fired: stressful, so no card for the next hour, and one on screen makes way.
     /// `sent` = alerts that went out on at least one channel (the receipt's "Alerts sent").
+    /// Nothing sent (every channel off for that account) = the user saw nothing, so no effect.
     func alerted(sent: Int) {
+        guard sent > 0 else { return }
         lastAlertAt = Date()
         let d = UserDefaults.standard
-        if sent > 0 { d.set(d.integer(forKey: Self.alertsSentKey) + sent, forKey: Self.alertsSentKey) }
+        d.set(d.integer(forKey: Self.alertsSentKey) + sent, forKey: Self.alertsSentKey)
         makeWay()
     }
 
