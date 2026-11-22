@@ -268,7 +268,7 @@ Alert texts look like **OpenRouter — prod-agent** / "$5.20 spent in the last h
 **OpenRouter — all keys** / "$21.40 spent this week (UTC) · over $20.00", **OpenRouter — prod-agent
 cap** / "$1.20 of $20.00 left · below $2.00", **OpenRouter — balance** / "$8.50 left · below $10.00".
 Each rule is a warning or a critical alert. They are delivered as one "OpenRouter" sender with its own
-**Desktop** and **ntfy** switches and topic override (Settings → OpenRouter); toast and sound follow
+**Desktop** and **ntfy** switches and topic override (Settings → OpenRouter); the toast follows its Desktop switch and
 Settings → General. Untick a rule to pause it.
 
 <img src="screenshots/spend-rule.png" alt="The Add Spend Alert sheet" width="440">

@@ -126,7 +126,9 @@ the last hour or 24 hours as measured from the app's own polls), cap left below 
 percent, or the credit balance below an amount. Each rule is a warning or a critical alert, and
 goes out through the same sinks as one "OpenRouter" sender.
 
-Three sinks, each toggleable per account in Settings:
+Three sinks. Per account, **Mac alerts** switches Desktop + Toast and **ntfy alerts** switches ntfy,
+so each account can have both, one, or none. Settings → Alerts adds an **Alerts** master switch and
+**Warning alerts** / **Critical alerts** switches for all accounts.
 - **Desktop** — a standard notification (grant permission once when macOS asks on first launch)
 - **ntfy** — a JSON POST to your server/topic, priority 3 (warning) / 4 (critical); each account
   can override the default topic. Optional access token (for a self-hosted server that needs a
@@ -134,7 +136,7 @@ Three sinks, each toggleable per account in Settings:
 - **Toast** — a floating panel top-right with a slide-and-fade animation and a sound
 
 <div align="center">
-<img src="docs/screenshots/settings-accounts.png" alt="Settings, Accounts tab: a list of accounts (Work, Personal, Side project, Codex) with + and − below, and the selected account's options: Name with Rename…, Show in set to Menu Bar and Popover, Desktop and ntfy alert switches and the ntfy topic." width="420">
+<img src="docs/screenshots/settings-accounts.png" alt="Settings, Accounts tab: a list of accounts (Work, Personal, Side project, Codex) with + and − below, and the selected account's options: Name with Rename…, Show in set to Menu Bar and Popover, Mac alerts and ntfy alerts switches and the ntfy topic." width="420">
 <br><br>
 <img src="docs/screenshots/toasts.png" alt="Agents Monitor toast notifications stacking top-right: a weekly-limit alert, an extra-usage alert and a Codex session alert." width="420">
 <br><br>
@@ -233,7 +235,7 @@ as you.
 ## Build & test
 
 ```bash
-swift test --package-path AgentsMonitorKit          # 132 unit tests (parsing for both providers and OpenRouter, derivation, alert engine, spend rules, placement, credentials, settings, menu bar, defaults migration, usage history)
+swift test --package-path AgentsMonitorKit          # 146 unit tests (parsing for both providers and OpenRouter, derivation, alert engine, spend rules, placement, credentials, settings, menu bar, defaults migration, usage history)
 xcodebuild -workspace AgentsMonitor.xcworkspace -scheme AgentsMonitor \
   -configuration Release -derivedDataPath build build
 cp -R build/Build/Products/Release/AgentsMonitor.app /Applications/

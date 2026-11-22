@@ -9,8 +9,8 @@
 PRODUCT_NAME = AgentsMonitor
 PRODUCT_DISPLAY_NAME = Agents Monitor
 PRODUCT_BUNDLE_IDENTIFIER = com.roy.agentsmonitor
-MARKETING_VERSION = 1.13.0
-CURRENT_PROJECT_VERSION = 33
+MARKETING_VERSION = 1.14.0
+CURRENT_PROJECT_VERSION = 34
 
 // ==========================================
 // Platform Configuration

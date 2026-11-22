@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.14.0] - 2026-11-22
+
 ### Added
 - Settings → Alerts: an **Alerts** master switch (off silences every channel for every account) and separate **Warning alerts** / **Critical alerts** switches.
 
