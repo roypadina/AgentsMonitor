@@ -111,9 +111,9 @@ menu bar and popover use.
 
 Fires when the **worse of** your warning/critical thresholds (default 80% / 95%) and the API's
 own severity is exceeded — de-duped per limit per reset window, and a drop below threshold
-re-arms it. A single failed poll on a local account is treated as a likely token-rotation race,
-not a real auth failure: the alert only fires on two consecutive strikes, and the memory of
-what's already fired survives an app relaunch.
+re-arms it. The memory of what's already fired survives an app relaunch. Login problems (an
+expired token, a remote account that needs fresh credentials) never alert: the popover shows them
+in the account's row.
 
 There's also a dedicated **extra-usage alert**: the moment paid usage starts being consumed
 (spend moves at all), you get one notification with the amount and the running monthly total —

@@ -16,7 +16,7 @@
 - [Alerts](#alerts)
   - [How a level is decided](#how-a-level-is-decided)
   - [De-dupe and re-arm](#de-dupe-and-re-arm)
-  - [Auth alerts](#auth-alerts)
+  - [Login problems](#login-problems)
   - [Alert sinks](#alert-sinks)
 - [Settings](#settings)
 - [ntfy setup from zero](#ntfy-setup-from-zero)
@@ -304,18 +304,16 @@ window. Rules:
 - This memory **persists across app relaunches** — an account already sitting above your
   critical threshold when you quit and relaunch does not re-fire just because the app restarted.
 
-### Auth alerts
+### Login problems
 
-`needsReauth` (local account, repeated 401) and `needsCredentialsRepaste` (remote account,
-refresh grant failed) each alert once at critical under a dedicated `auth` key, and go quiet
-again once that account returns to a healthy poll.
+Login problems never send an alert. `needsReauth` (local account, 401) and
+`needsCredentialsRepaste` (remote account, refresh grant failed) show only in the popover, on
+that account's row and card. In practice these alerts were false alarms (token rotation, a poll
+racing the CLI) while the CLI kept working, so they were removed.
 
 A single 401 on a local account usually isn't a real auth failure — it's Claude Code itself
-rotating that profile's token mid-poll. Agents Monitor re-reads the keychain and retries once
-after a couple of seconds before treating it as anything alertable, and even then the alert
-only fires on the **second consecutive** failed poll, not the first. This is why you may
-occasionally see a state flash and clear in the logs without any alert at all — that's the
-debounce working as intended.
+rotating that profile's token mid-poll. Agents Monitor waits 2 seconds, re-reads the token and,
+if it changed, retries once. Only a 401 that survives that shows **Login token expired**.
 
 ### Alert sinks
 
@@ -398,7 +396,7 @@ and **Remove**.
   (in the welcome window or here), and turning it off sticks. Once on it is self-healing: it
   re-registers automatically if the app bundle moves, and an **Allow in Login Items…** button
   appears if macOS requires your approval in System Settings.
-- **Show percent in menu bar**, **Toast notifications**, **Sound** — straightforward on/off
+- **Show percent in menu bar**, **Toast notifications** (shown only for accounts with Mac alerts on), **Sound** — straightforward on/off
   toggles.
 
 <img src="screenshots/settings-accounts.png" alt="Agents Monitor Settings, Accounts tab" width="440">
@@ -426,13 +424,18 @@ for the public server.
 
 ## Troubleshooting
 
+**No alerts at all?** Check, in order: Settings → Alerts → **Alerts** is on; **Warning alerts** /
+**Critical alerts** are on for the level you expect; the account has **Mac alerts** or **ntfy
+alerts** on in Settings → Accounts (ntfy also needs a topic). **Send Test Alert** ignores these
+switches, so a working test does not prove they are on.
+
 | Card shows… | Meaning | Fix |
 |---|---|---|
 | **Waiting for first refresh…** | App just launched or account just added; no poll has completed yet. | Wait for the poll interval, or click **Refresh**. |
 | **Not logged in** | No matching keychain entry for this account's config dir. | Log in to Claude Code for that profile (`claude` then `/login`), or remove the account if it's stale. |
 | **Keychain access denied** | A keychain read for this account hit a real consent failure, not the usual silent CLI fallback. Negative-cached for 30 minutes so it won't hammer the prompt. | Usually resolves on its own after the cache expires; if it persists, check Keychain Access for a "Claude Code-credentials…" item with a broken ACL. |
-| **Login token expired — open a Claude Code session for this profile** | Local Claude account, two consecutive 401s (not the usual single rotation blip). | Open a terminal, run `claude` for that `CLAUDE_CONFIG_DIR`, let it refresh normally. Only run `/login` if that alone doesn't clear it. |
-| **Login token expired — run codex in this profile** | Codex account, two consecutive 401s. | Run `codex` with that `CODEX_HOME`, which rewrites `auth.json` with a fresh token. Only run `codex login` if that alone doesn't clear it. |
+| **Login token expired — open a Claude Code session for this profile** | Local Claude account, a 401 that a token re-read and retry did not clear (not the usual rotation blip). | Open a terminal, run `claude` for that `CLAUDE_CONFIG_DIR`, let it refresh normally. Only run `/login` if that alone doesn't clear it. |
+| **Login token expired — run codex in this profile** | Codex account, a 401 that a token re-read and retry did not clear. | Run `codex` with that `CODEX_HOME`, which rewrites `auth.json` with a fresh token. Only run `codex login` if that alone doesn't clear it. |
 | **Credentials expired** (remote account, with a **Paste credentials…** button) | The refresh grant failed — most often the source machine rotated the same lineage first (the rotation race, see [Remote accounts](#remote-accounts)). | Click **Paste credentials…**, re-copy the JSON from the source machine, save. |
 | **Rate limited until HH:MM** | The usage endpoint returned 429 for this account. Backoff walks 3 → 6 → 12 → 15 minutes and holds; any successful poll resets it. | Nothing to do — it recovers on its own. Persisting past ~15 minutes on every account suggests you're hitting a shared-bucket throttle; check you're not also running another heavy poller against the same token. |
 | **Can't reach Anthropic: timed out** (or OpenAI; also *no internet connection*, *server not found*, *connection lost*) | The usage endpoint could not be reached. | Check your network or VPN. The next poll retries by itself. |
