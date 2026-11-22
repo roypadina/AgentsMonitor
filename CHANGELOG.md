@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.14.1] - 2026-11-22
+
+### Fixed
+- An alert for an account with both Mac and ntfy alerts off no longer closes or delays the support card: you saw nothing, so nothing changes.
+
 ## [1.14.0] - 2026-11-22
 
 ### Added
