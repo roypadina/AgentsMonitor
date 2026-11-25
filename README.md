@@ -107,6 +107,21 @@ menu bar and popover use.
   refreshes that lineage, one side loses the race and the card falls back to
   *Paste credentials…* — see [the User Guide](docs/USER-GUIDE.md#remote-accounts) for the details.
 
+### Profiles that don't use `/login`
+
+A local account works only while Claude Code keeps that profile's `/login` login fresh. If a profile
+runs on a `claude setup-token` (`CLAUDE_CODE_OAUTH_TOKEN`, set by you, a wrapper, a launcher or an
+account switcher), an API key or a gateway, nothing refreshes that login: the account shows **Login
+token expired** although Claude Code works fine there. Agents Monitor can't use the token instead,
+because the usage endpoint needs the `user:profile` scope and a `setup-token` doesn't have it.
+
+- **API key or gateway profile:** remove the account. There are no plan limits to show.
+- **`setup-token` profile:** give Agents Monitor its own login for that account as a **remote**
+  account: run `claude auth login` once with `CLAUDE_CONFIG_DIR` set to a throwaway folder, paste
+  those credentials into **Remote Claude Account…**, then delete the throwaway login. Agents Monitor
+  is then the only user of that login and keeps it fresh. Step by step:
+  [wiki → Profiles that don't use /login](https://github.com/roypadina/AgentsMonitor/wiki/Accounts#profiles-that-dont-use-login).
+
 ## Alerts
 
 Fires when the **worse of** your warning/critical thresholds (default 80% / 95%) and the API's
